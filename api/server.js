@@ -14,14 +14,14 @@ app.get('/', (req, res) => {
 
 app.use('/api/users', userRoutes);
 
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/billingDB?retryWrites=true&w=majority', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
   .then(() => {
     console.log('MongoDB connected');
-    app.listen(process.env.PORT, () => {
-      console.log(`Server running on port ${process.env.PORT}`);
+    app.listen(5000, () => {
+      console.log(`Server running on port 5000`);
     });
   })
   .catch((err) => console.error(err));
