@@ -2,17 +2,28 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const userRoutes = require('./../routes/userRoutes');
+const User = require('../models/User');
 
 dotenv.config();
 const app = express();
 
 app.use(express.json()); // Middleware to parse JSON
 
-app.get('/', (req, res) => {
-  res.send('Hello from the server!');
+app.get('/', async(req, res) => {
+  // GET /api/users
+  // router.get('/', async (req, res) => {
+    try {
+      const users = await User.find({});
+      console.log('users: ', users);  
+      res.json(users);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  // });D
+  
 });
 
-app.use('/api/users', userRoutes);
+// app.use('/api/users', userRoutes);
 
 mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/billingDB?retryWrites=true&w=majority', {
   useNewUrlParser: true,
