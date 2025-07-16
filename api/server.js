@@ -25,7 +25,7 @@ app.get('/', async(req, res) => {
 
 // app.use('/api/users', userRoutes);
 
-mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/billingDB', {
+mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
