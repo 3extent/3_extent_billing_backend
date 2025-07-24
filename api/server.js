@@ -9,21 +9,7 @@ const app = express();
 
 app.use(express.json()); // Middleware to parse JSON
 
-app.get('/', async(req, res) => {
-  // GET /api/users
-  // router.get('/', async (req, res) => {
-    try {
-      const users = await User.find({});
-      console.log('users: ', users);  
-      res.json(users);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-  // });D
-  
-});
-
-// app.use('/api/users', userRoutes);
+app.use('/api/users', userRoutes);
 
 mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing', {
   useNewUrlParser: true,
