@@ -2,7 +2,28 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
+// Get all users(CUSTOMER, SUPPLIER, ADMIN) with filters
+// GET /api/users?role=CUSTOMER
+router.get('/', async (req, res) => {
+  try {
+    const { role, name, mobile_number, company_name, type } = req.query;
+    const filter = {};
 
+    if (role) filter.role = role;
+    if (mobile_number) filter.mobile_number = mobile_number;
+    if (company_name) filter.company_name = company_name;
+    if (name) filter.name = name;
+    if (type) filter.type = type;
+
+    const users = await User.find(filter);
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ADMIN login
 // POST /api/users/login
 router.post('/login', async (req, res) => {
   try {
@@ -20,21 +41,5 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/users?role=CUSTOMER
-router.get('/users', async (req, res) => {
-  try {
-    const { role, name, mobile_number, company_name } = req.query;
-    const filter = {};
-
-    if (role) filter.role = role;
-    if (mobile_number) filter.mobile_number = mobile_number;
-    if (company_name) filter.company_name = company_name;
-    if (name) filter.name = name; 
-    const users = await User.find(filter);
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 module.exports = router;

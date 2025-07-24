@@ -2,6 +2,10 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const userRoutes = require('./../routes/userRoutes');
+const productRoutes = require('./../routes/productRoutes');
+const brandRoutes = require('./../routes/brandRoutes');
+const modelRoutes = require('./../routes/modelRoutes');
+
 const User = require('../models/User');
 const cors = require('cors');
 
@@ -12,6 +16,9 @@ app.use(express.json()); // Middleware to parse JSON
 app.use(cors());
 
 app.use('/api/users', userRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/brands', brandRoutes);
+app.use('/api/models', modelRoutes);
 
 mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing', {
   useNewUrlParser: true,

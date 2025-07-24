@@ -4,7 +4,7 @@ const Brand = require('../models/Brand');
 
 
 // GET /api/brands?name="Samsung"
-router.get('/brands', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { name } = req.query;
     const filter = {};

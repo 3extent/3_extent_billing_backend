@@ -8,7 +8,6 @@ const userSchema = new mongoose.Schema({
   address:String,
   gst_number: Number,
   email: String,
-  company_name: String,
   role: String
 });
 
