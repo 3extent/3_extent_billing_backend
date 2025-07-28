@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
 
     if (createdAt) filter.createdAt = createdAt;
     if (brand) filter.brand = brand;
-    if (model) filter.model = model;
+    // if (model) filter.model = model;
 
     const products = await Product.find(filter);
     res.json(products);
