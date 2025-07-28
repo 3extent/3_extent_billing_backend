@@ -8,12 +8,13 @@ router.get('/', async (req, res) => {
   try {
     const { role, name, mobile_number, company_name, type } = req.query;
     const filter = {};
-
+    
     if (role) filter.role = role;
     if (mobile_number) filter.mobile_number = mobile_number;
     if (company_name) filter.company_name = company_name;
     if (name) filter.name = name;
     if (type) filter.type = type;
+    console.log('filter: ', filter);
 
     const users = await User.find(filter);
     res.json(users);
