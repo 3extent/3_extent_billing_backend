@@ -6,7 +6,7 @@ const Product = require('../models/Product');
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
-    const { createdAt, brand } = req.query;
+    const { createdAt, brand, model } = req.query;
     const filter = {};
 
     if (createdAt) filter.createdAt = createdAt;
