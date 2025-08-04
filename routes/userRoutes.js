@@ -8,7 +8,7 @@ router.get('/', async (req, res) => {
   try {
     const { role, name, mobile_number, company_name, type } = req.query;
     const filter = {};
-    
+
     if (role) filter.role = role;
     if (mobile_number) filter.mobile_number = mobile_number;
     if (company_name) filter.company_name = company_name;
@@ -42,5 +42,16 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// POST /api/user
+router.post('/register', async (req, res) => {
+  try {
+    const { name, contact_number, role, type, company_name, address, gst_number, email } = req.body;
+    const user = new User({ name, contact_number, role, type, company_name, address, gst_number, email });
+    await user.save();
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;

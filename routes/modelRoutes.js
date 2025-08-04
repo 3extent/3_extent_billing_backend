@@ -33,4 +33,16 @@ router.get('/', async (req, res) => {
   }
 });
 
+// POST /api/model
+router.post('/model', async (req, res) => {
+  try {
+    const { name, brand } = req.body;
+    const model = new Model({ name, brand });
+    await model.save();
+    res.json(model);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
