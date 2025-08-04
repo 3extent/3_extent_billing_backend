@@ -33,8 +33,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/model
-router.post('/model', async (req, res) => {
+// POST /api/models
+router.post('/', async (req, res) => {
   try {
     const { name, brand } = req.body;
     const model = new Model({ name, brand });

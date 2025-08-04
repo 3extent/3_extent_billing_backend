@@ -20,8 +20,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/product
-router.post('/products', async (req, res) => {
+// POST /api/products/
+router.post('/', async (req, res) => {
   try {
     const { products } = req.body;
 

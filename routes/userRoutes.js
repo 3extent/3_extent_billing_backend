@@ -42,8 +42,8 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/user
-router.post('/register', async (req, res) => {
+// POST /api/users
+router.post('/', async (req, res) => {
   try {
     const { name, contact_number, role, type, company_name, address, gst_number, email } = req.body;
     const user = new User({ name, contact_number, role, type, company_name, address, gst_number, email });
