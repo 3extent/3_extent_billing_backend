@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
     if (brand) filter.brand = brand;
     // if (model) filter.model = model;
 
-    const products = await Product.find(filter).populate('model');
+    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } });
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
