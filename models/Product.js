@@ -5,7 +5,7 @@ const productSchema = new mongoose.Schema({
   sales_price: Number,
   purchase_price: Number,
   grade: String,
-  model: { type: mongoose.Schema.Types.ObjectId, ref: 'Model' }
+  brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }
 });
 
 module.exports = mongoose.model('Product', productSchema);
