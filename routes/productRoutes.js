@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
     if (modelName) {
       const modelFromDb = await Brand.findOne({ name: { $regex: modelName, $options: 'i' } });
       if (!modelFromDb) {
-        return res.status(404).json({ message: 'Brand not found' });
+        return res.status(404).json({ message: 'Model not found' });
       }
       filter.model = modelFromDb._id;
     }
