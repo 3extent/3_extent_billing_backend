@@ -7,11 +7,22 @@ const Product = require('../models/Product');
 router.get('/', async (req, res) => {
   try {
     const { createdAt, brand, model } = req.query;
-    const filter = {};
+    let filter = {};
+
+    if (imei_number) {
+      filter.imei_number = { $regex: imei_number, $options: 'i' }; // partial, case-insensitive match
+    }
+
+    if (grade) {
+      filter.grade = { $regex: grade, $options: 'i' }; // partial, case-insensitive match
+    }
+    
+    if (model) {
+      filter.model = { $regex: model, $options: 'i' }; // partial, case-insensitive match
+    }
+
 
     if (createdAt) filter.createdAt = createdAt;
-    if (imei_number) filter.imei_number = imei_number;
-    if (grade) filter.grade = grade;
     if (brand) filter.brand = brand;
     if (model) filter.model = model;
 
