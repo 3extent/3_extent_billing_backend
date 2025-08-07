@@ -14,17 +14,18 @@ router.get('/', async (req, res) => {
 
     // Step 1: If brand name is provided, find brand's ObjectId
     if (brandName) {
-      const brandName = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
-      if (!brandName) {
+      const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
+      if (!brandFromDb) {
         return res.status(404).json({ message: 'Brand not found' });
       }
-      filter.brand = brandName._id;
+      filter.brand = brandFromDb._id;
     }
 
     // Step 2: If model name is provided, add to filter
     if (modelName) {
       filter.name = { $regex: modelName, $options: 'i' }; // case-insensitive match
     }
+    
     const models = await Model.find(filter).populate('brand');
 
     res.json(models);
