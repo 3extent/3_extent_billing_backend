@@ -7,9 +7,11 @@ const Brand = require('../models/Brand');
 router.get('/', async (req, res) => {
   try {
     const { name } = req.query;
-    const filter = {};
 
-    if (name) filter.name = name;
+    let filter = {};
+    if (name) {
+      filter.name = { $regex: name, $options: 'i' }; // partial, case-insensitive match
+    }
 
     const brands = await Brand.find(filter);
     res.json(brands);
@@ -17,6 +19,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // POST /api/brand
 router.post('/', async (req, res) => {
