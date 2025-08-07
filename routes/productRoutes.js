@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
       const { model, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier } = product;
 
       // Basic validation
-      if (!model || !imei_number || !sales_price || !purchase_price || !grade || engineer_name || accessories || supplier) {
+      if (!model || !imei_number || !sales_price || !purchase_price || !grade || !engineer_name || !accessories || !supplier) {
         errors.push(`Product at index ${i} is missing required fields`);
         continue;
       }

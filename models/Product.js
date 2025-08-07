@@ -8,7 +8,8 @@ const productSchema = new mongoose.Schema({
   grade: String,
   engineer_name: String,
   accessories: String,
-  supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  createdAt: String
 });
 
 module.exports = mongoose.model('Product', productSchema);
