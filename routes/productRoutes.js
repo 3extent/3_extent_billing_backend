@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
-
+const Brand = require('../models/Brand');
+const Model = require('../models/Model');
 
 // GET /api/products
 router.get('/', async (req, res) => {
@@ -29,7 +30,7 @@ router.get('/', async (req, res) => {
     }
 
     if (modelName) {
-      const modelFromDb = await Brand.findOne({ name: { $regex: modelName, $options: 'i' } });
+      const modelFromDb = await Model.findOne({ name: { $regex: modelName, $options: 'i' } });
       if (!modelFromDb) {
         return res.status(404).json({ message: 'Model not found' });
       }
