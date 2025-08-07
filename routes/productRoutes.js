@@ -10,6 +10,8 @@ router.get('/', async (req, res) => {
     const filter = {};
 
     if (createdAt) filter.createdAt = createdAt;
+    if (imei_number) filter.imei_number = imei_number;
+    if (grade) filter.grade = grade;
     if (brand) filter.brand = brand;
     if (model) filter.model = model;
 
@@ -36,15 +38,15 @@ router.post('/', async (req, res) => {
 
     for (let i = 0; i < products.length; i++) {
       const product = products[i];
-      const { imei_number, sales_price, purchase_price, grade, model } = product;
+      const { model, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier } = product;
 
       // Basic validation
-      if (!imei_number || !sales_price || !purchase_price || !grade || !model) {
+      if (!model || !imei_number || !sales_price || !purchase_price || !grade || engineer_name || accessories || supplier) {
         errors.push(`Product at index ${i} is missing required fields`);
         continue;
       }
 
-      validProducts.push({ imei_number, sales_price, purchase_price, grade, model });
+      validProducts.push({ model, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier });
     }
 
     if (errors.length > 0) {

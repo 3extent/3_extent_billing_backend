@@ -6,12 +6,11 @@ const User = require('../models/User');
 // GET /api/users?role=CUSTOMER
 router.get('/', async (req, res) => {
   try {
-    const { role, name, mobile_number, company_name, type } = req.query;
+    const { role, name, contact_number, company_name, type } = req.query;
     const filter = {};
 
     if (role) filter.role = role;
-    if (mobile_number) filter.mobile_number = mobile_number;
-    if (company_name) filter.company_name = company_name;
+    if (contact_number) filter.contact_number = contact_number;
     if (name) filter.name = name;
     if (type) filter.type = type;
     console.log('filter: ', filter);

@@ -19,7 +19,7 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/brand
-router.post('/brand', async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
     const brand = new Brand({ name });
