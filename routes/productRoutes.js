@@ -6,7 +6,7 @@ const Product = require('../models/Product');
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
-    const { createdAt, brand, model } = req.query;
+    const { imei_number, grade, createdAt, brandName, modelName } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -16,15 +16,25 @@ router.get('/', async (req, res) => {
     if (grade) {
       filter.grade = { $regex: grade, $options: 'i' }; // partial, case-insensitive match
     }
-    
-    if (model) {
-      filter.model = { $regex: model, $options: 'i' }; // partial, case-insensitive match
-    }
-
 
     if (createdAt) filter.createdAt = createdAt;
-    if (brand) filter.brand = brand;
-    if (model) filter.model = model;
+
+
+    if (brandName) {
+      const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
+      if (!brandFromDb) {
+        return res.status(404).json({ message: 'Brand not found' });
+      }
+      filter.brand = brandFromDb._id;
+    }
+
+    if (modelName) {
+      const modelFromDb = await Brand.findOne({ name: { $regex: modelName, $options: 'i' } });
+      if (!modelFromDb) {
+        return res.status(404).json({ message: 'Brand not found' });
+      }
+      filter.model = modelFromDb._id;
+    }
 
     const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } });
     res.json(products);
