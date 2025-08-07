@@ -50,7 +50,7 @@ router.post('/', async (req, res) => {
 
     // Check if products is an array
     if (!Array.isArray(products)) {
-      return res.status(400).json({ error: 'Products must be an array' });
+      return res.status(400).json({ error: 'Products must be an array', products });
     }
 
     // Validate each product in the array
