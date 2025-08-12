@@ -62,18 +62,18 @@ router.post('/', async (req, res) => {
       const product = products[i];
       const { model, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier } = product;
       if (model) {
-        const modelFromDb = await Model.findOne({ name: { $regex: model, $options: 'i' } });
+        const modelFromDb = await Model.findOne({ name: model });
         if (!modelFromDb) {
           return res.status(404).json({ message: 'Model not found' });
         }
         model = modelFromDb._id;
       }
       if (supplier) {
-        const supplierFromDb = await User.findOne({ name: { $regex: supplier, $options: 'i' } });
+        const supplierFromDb = await User.findOne({ name: supplier });
         if (!supplierFromDb) {
           return res.status(404).json({ message: 'Supplier not found' });
         }
-        model = supplierFromDb._id;
+        supplier = supplierFromDb._id;
       }
       // Basic validation
       if (!model || !imei_number || !sales_price || !purchase_price || !grade || !engineer_name || !accessories || !supplier) {
