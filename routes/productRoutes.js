@@ -7,6 +7,7 @@ const Model = require('../models/Model');
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
+    console.log(req.query);
     const { imei_number, grade, createdAt, brandName, modelName } = req.query;
     let filter = {};
 
@@ -22,11 +23,16 @@ router.get('/', async (req, res) => {
 
 
     if (brandName) {
-      const brandFromDb = await Brand.findOne({ name: brandName });
+      const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
+      console.log(brandFromDb);
       if (!brandFromDb) {
-        filter.brand = null;
+        // If no brand found, find models that don't have this brand
+        const modelsWithoutBrand = await Model.find({ brand: { $ne: brandFromDb._id } });
+        filter.model = { $in: modelsWithoutBrand.map(m => m._id) };
       } else {
-        filter.brand = brandFromDb._id;
+        // Find models that belong to this brand
+        const modelsWithBrand = await Model.find({ brand: brandFromDb._id });
+        filter.model = { $in: modelsWithBrand.map(m => m._id) };
       }
     }
 
@@ -38,6 +44,8 @@ router.get('/', async (req, res) => {
         filter.model = modelFromDb._id;
       }
     }
+
+    console.log(filter);
 
     const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } });
     res.json(products);
