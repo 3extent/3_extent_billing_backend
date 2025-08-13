@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
 
 
     if (brandName) {
-      const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
+      const brandFromDb = await Brand.findOne({ name: brandName });
       if (!brandFromDb) {
         filter.brand = null;
       } else {
