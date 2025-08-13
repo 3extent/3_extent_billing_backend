@@ -24,17 +24,19 @@ router.get('/', async (req, res) => {
     if (brandName) {
       const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
       if (!brandFromDb) {
-        return res.status(404).json({ message: 'Brand not found' });
+        filter.brand = null;
+      } else {
+        filter.brand = brandFromDb._id;
       }
-      filter.brand = brandFromDb._id;
     }
 
     if (modelName) {
       const modelFromDb = await Model.findOne({ name: { $regex: modelName, $options: 'i' } });
       if (!modelFromDb) {
-        return res.status(404).json({ message: 'Model not found' });
+        filter.model = null;
+      } else {
+        filter.model = modelFromDb._id;
       }
-      filter.model = modelFromDb._id;
     }
 
     const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } });
