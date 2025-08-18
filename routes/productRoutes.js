@@ -3,6 +3,7 @@ const router = express.Router();
 const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
+const User = require('../models/User');
 
 // GET /api/products
 router.get('/', async (req, res) => {
@@ -66,7 +67,7 @@ router.post('/', async (req, res) => {
     }
 
     // Find the supplier by name
-    const supplier = await Model.findOne({ name: supplier_name });
+    const supplier = await User.findOne({ name: supplier_name });
     if (!supplier) {
       return res.status(400).json({ error: 'Supplier not found' });
     }
