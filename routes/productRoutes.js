@@ -47,7 +47,7 @@ router.get('/', async (req, res) => {
 
     console.log(filter);
 
-    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate(supplier);
+    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier');
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -73,14 +73,14 @@ router.post('/', async (req, res) => {
 
     // Create new product
     const product = new Product({
-      model: model,
+      model,
       imei_number,
       sales_price,
       purchase_price,
       grade,
       engineer_name,
       accessories,
-      supplier: supplier,
+      supplier,
       qc_remark,
       status,
       createdAt: new Date().toISOString()
