@@ -25,6 +25,12 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
+
+    const existingBrand = await Brand.findOne({ name });
+    if (existingBrand) {
+      return res.status(400).json({ error: 'Brand already exists' });
+    }
+
     const brand = new Brand({ name });
     await brand.save();
     res.json(brand);

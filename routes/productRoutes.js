@@ -64,7 +64,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Products must be an array', products });
     }
 
-    // Validate each product in the array
+    // ValiString each product in the array
     const validProducts = [];
     const errors = [];
 

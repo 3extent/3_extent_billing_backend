@@ -9,6 +9,7 @@ const productSchema = new mongoose.Schema({
   engineer_name: String,
   accessories: String,
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  status: String,
   createdAt: String
 });
 

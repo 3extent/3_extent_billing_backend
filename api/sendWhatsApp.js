@@ -2,21 +2,23 @@
 const axios = require('axios');
 
 // Hardcoded credentials (replace with your actual values)
-const accessToken = 'EAARBnZC7iFKQBPGBa14Ne516r5jneL854ZCn3AZAmbY8HrAnRrSbG8CBjcwwFwNPTd0dX42WEnkvPLoz4ZBojjOuL2BAIc9xldJmuZAFFvMKogYZBQAAP7cPLMvMWc9xtsp8LiQst0LxZAUGB1XIZCwgVSBsFcBWKU2RZAaUBnQ98gycyc0ZAmKBj7ZBZCw4sorTeJXGhpl56ZCk36UMvOXXpFeq0s56xMfytSDO139aOIbfU0Qfd2AZDZD';
+const accessToken = 'EAARBnZC7iFKQBPC9tMHqbgpYFGPAx43pCQDCYl61PUCO3s6ZCYPE6Dr9LxEHgNlBeZC36cY4ZBL0KTJuI63Bdy7FoGdZB7Wwj5m8dZBtTNaZBsxZC0Ku1k93WkfCuzTqNt9Ck7mbSAulI7lnU4q2S9pwtWE76xWRH8kXQRmAVO3GBgV7GCBXaB3j3ZBFLv8Tu9dQtQwi1FZA8ZC3Nu44SUo8PS45GtX9n0vp88EZAY0v4BJT7tTEHAZDZD';
 // const phoneNumberId = '7972586767';
 const phoneNumberId = '785541811301232'; // in international format (e.g. 15551234567)
-const recipientPhone = ['919975747759', "917972586767"]; // in international format (e.g. 15551234567)
+const recipientPhone = "917972586767"; // in international format (e.g. 15551234567)
 
 async function sendWhatsAppMessage() {
   try {
     const response = await axios.post(
-      `https://graph.facebook.com/v22.0/${phoneNumberId}/messages`,
+      `https://graph.facebook.com/v23.0/${phoneNumberId}/messages`,
       {
-        messaging_product: 'whatsapp',
-        to: recipientPhone,
-        type: 'text',
-        text: {
-          body: 'Hello! This is a test message from WhatsApp Cloud API using hardcoded values.'
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": recipientPhone,
+        "type": "text",
+        "text": {
+          "preview_url": true,
+          "body": "Hello, this is a test message from WhatsApp Cloud API using hardcoded values."
         }
       },
       {

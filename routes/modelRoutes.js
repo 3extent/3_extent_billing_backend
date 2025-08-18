@@ -11,7 +11,6 @@ router.get('/', async (req, res) => {
 
     let filter = {};
 
-
     // Step 1: If brand name is provided, find brand's ObjectId
     if (brandName) {
       const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
@@ -25,7 +24,7 @@ router.get('/', async (req, res) => {
     if (modelName) {
       filter.name = { $regex: modelName, $options: 'i' }; // case-insensitive match
     }
-    
+
     const models = await Model.find(filter).populate('brand');
 
     res.json(models);
@@ -38,6 +37,12 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, brand } = req.body;
+
+    const existingModel = await Model.findOne({ name });
+    if (existingModel) {
+      return res.status(400).json({ error: 'Model already exists' });
+    }
+
     const model = new Model({ name, brand });
     await model.save();
     res.json(model);

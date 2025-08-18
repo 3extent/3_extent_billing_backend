@@ -52,6 +52,10 @@ router.post('/login', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { name, contact_number, role, type, company_name, address, gst_number, email } = req.body;
+    const existingUser = await User.findOne({ contact_number });
+    if (existingUser) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
     const user = new User({ name, contact_number, role, type, company_name, address, gst_number, email });
     await user.save();
     res.json(user);
