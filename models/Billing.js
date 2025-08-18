@@ -11,4 +11,4 @@ const billingSchema = new mongoose.Schema({
   createdAt: String
 });
 
-module.exports = mongoose.model('User', billingSchema);
+module.exports = mongoose.model('Billing', billingSchema);
