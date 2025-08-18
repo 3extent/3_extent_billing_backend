@@ -57,56 +57,37 @@ router.get('/', async (req, res) => {
 // POST /api/products/
 router.post('/', async (req, res) => {
   try {
-    const { products } = req.body;
+    const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = req.body;
 
-    // Check if products is an array
-    if (!Array.isArray(products)) {
-      return res.status(400).json({ error: 'Products must be an array', products });
+    // Find the model by name
+    const model = await Model.findOne({ name: model_name });
+    if (!model) {
+      return res.status(400).json({ error: 'Model not found' });
     }
 
-    // ValiString each product in the array
-    const validProducts = [];
-    const errors = [];
-
-    for (let i = 0; i < products.length; i++) {
-      const product = products[i];
-      const { model, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier } = product;
-      if (model) {
-        const modelFromDb = await Model.findOne({ name: model });
-        if (!modelFromDb) {
-          return res.status(404).json({ message: 'Model not found' });
-        }
-        model = modelFromDb._id;
-      }
-      if (supplier) {
-        const supplierFromDb = await User.findOne({ name: supplier });
-        if (!supplierFromDb) {
-          return res.status(404).json({ message: 'Supplier not found' });
-        }
-        supplier = supplierFromDb._id;
-      }
-      // Basic validation
-      if (!model || !imei_number || !sales_price || !purchase_price || !grade || !engineer_name || !accessories || !supplier) {
-        errors.push(`Product at index ${i} is missing required fields`);
-        continue;
-      }
-
-      validProducts.push({ model, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier });
+    // Find the supplier by name
+    const supplier = await Model.findOne({ name: supplier_name });
+    if (!supplier) {
+      return res.status(400).json({ error: 'Supplier not found' });
     }
 
-    if (errors.length > 0) {
-      return res.status(400).json({ errors });
-    }
+    // Create new product
+    const product = new Product({
+      model: model._id,
+      imei_number,
+      sales_price,
+      purchase_price,
+      grade,
+      engineer_name,
+      accessories,
+      supplier: supplier._id,
+      qc_remark,
+      status,
+      createdAt: new Date().toISOString()
+    });
 
-    // Create all products
-    const createdProducts = await Product.insertMany(validProducts);
-
-    // Populate the model and brand references
-    const populatedProducts = await Product.find({
-      _id: { $in: createdProducts.map(p => p._id) }
-    }).populate({ path: 'model', populate: { path: 'brand' } });
-
-    res.json(populatedProducts);
+    await product.save();
+    res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

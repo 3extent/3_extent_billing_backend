@@ -10,6 +10,7 @@ const productSchema = new mongoose.Schema({
   accessories: String,
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: String,
+  qc_remark: String,
   createdAt: String
 });
 
