@@ -6,7 +6,7 @@ const Billing = require('../models/Billing');
 // GET /api/billings?name="Samsung"
 router.get('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, billing_String, status } = req.query;
+    const { customer_name, contact_number, createdAt, status } = req.query;
 
     let filter = {};
     if (customer_name) {
@@ -15,8 +15,8 @@ router.get('/', async (req, res) => {
     if (contact_number) {
       filter.contact_number = { $regex: contact_number, $options: 'i' }; // partial, case-insensitive match
     }
-    if (billing_String) {
-      filter.billing_String = { $regex: billing_String, $options: 'i' }; // partial, case-insensitive match
+    if (createdAt) {
+      filter.createdAt = { $regex: createdAt, $options: 'i' }; // partial, case-insensitive match
     }
     if (status) {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
