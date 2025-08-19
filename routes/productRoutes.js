@@ -55,40 +55,82 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/products/
+// POST /api/products/ - Create single or multiple products
 router.post('/', async (req, res) => {
   try {
-    const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = req.body;
+    const productsData = Array.isArray(req.body) ? req.body : [req.body];
+    const createdProducts = [];
+    const errors = [];
 
-    // Find the model by name
-    const model = await Model.findOne({ name: model_name });
-    if (!model) {
-      return res.status(400).json({ error: 'Model not found' });
+    for (let i = 0; i < productsData.length; i++) {
+      const productData = productsData[i];
+      const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
+
+      try {
+        // Find the model by name
+        const model = await Model.findOne({ name: model_name });
+        if (!model) {
+          errors.push({ index: i, error: 'Model not found', data: productData });
+          continue;
+        }
+
+        // Find the supplier by name
+        const supplier = await User.findOne({ name: supplier_name });
+        if (!supplier) {
+          errors.push({ index: i, error: 'Supplier not found', data: productData });
+          continue;
+        }
+
+        // Create new product
+        const product = new Product({
+          model,
+          imei_number,
+          sales_price,
+          purchase_price,
+          grade,
+          engineer_name,
+          accessories,
+          supplier,
+          qc_remark,
+          status,
+          createdAt: new Date().toISOString()
+        });
+
+        await product.save();
+        createdProducts.push(product);
+      } catch (productError) {
+        errors.push({ index: i, error: productError.message, data: productData });
+      }
     }
 
-    // Find the supplier by name
-    const supplier = await User.findOne({ name: supplier_name });
-    if (!supplier) {
-      return res.status(400).json({ error: 'Supplier not found' });
+    // Return results
+    if (createdProducts.length === 0) {
+      return res.status(400).json({
+        error: 'No products were created',
+        errors
+      });
     }
 
-    // Create new product
-    const product = new Product({
-      model,
-      imei_number,
-      sales_price,
-      purchase_price,
-      grade,
-      engineer_name,
-      accessories,
-      supplier,
-      qc_remark,
-      status,
-      createdAt: new Date().toISOString()
-    });
+    if (errors.length > 0) {
+      return res.status(207).json({ // 207 Multi-Status
+        message: 'Some products were created successfully',
+        created: createdProducts.length,
+        failed: errors.length,
+        createdProducts,
+        errors
+      });
+    }
 
-    await product.save();
-    res.json(product);
+    // All products created successfully
+    if (productsData.length === 1) {
+      res.json(createdProducts[0]); // Return single product for backward compatibility
+    } else {
+      res.json({
+        message: 'All products created successfully',
+        count: createdProducts.length,
+        products: createdProducts
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
