@@ -5,6 +5,7 @@ const userRoutes = require('./../routes/userRoutes');
 const productRoutes = require('./../routes/productRoutes');
 const brandRoutes = require('./../routes/brandRoutes');
 const modelRoutes = require('./../routes/modelRoutes');
+const billingRoutes = require('./../routes/billingRoutes');
 
 const User = require('../models/User');
 const cors = require('cors');
