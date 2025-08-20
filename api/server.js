@@ -19,6 +19,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/models', modelRoutes);
+app.use('/api/billings', billingRoutes);
 
 mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing', {
   useNewUrlParser: true,
