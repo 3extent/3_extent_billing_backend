@@ -36,16 +36,51 @@ router.get('/', async (req, res) => {
 // POST /api/models
 router.post('/', async (req, res) => {
   try {
-    const { name, brand } = req.body;
+    const { name, brand, ramStorage } = req.body;
 
-    const existingModel = await Model.findOne({ name });
-    if (existingModel) {
-      return res.status(400).json({ error: 'Model already exists' });
+    if (!name || !brand) {
+      return res.status(400).json({ error: 'name and brand are required' });
     }
 
-    const model = new Model({ name, brand });
-    await model.save();
-    res.json(model);
+    const ramStorageList = Array.isArray(ramStorage)
+      ? ramStorage
+      : (ramStorage ? [ramStorage] : []);
+
+    if (ramStorageList.length === 0) {
+      return res.status(400).json({ error: 'ramStorage is required' });
+    }
+
+    const created = [];
+    const skipped = [];
+
+    for (const ram of ramStorageList) {
+      const exists = await Model.findOne({ name, brand, ramStorage: ram });
+      if (exists) {
+        skipped.push(ram);
+        continue;
+      }
+
+      const model = new Model({ name, brand, ramStorage: ram });
+      try {
+        await model.save();
+        created.push(model);
+      } catch (e) {
+        if (e && e.code === 11000) {
+          skipped.push(ram);
+          continue;
+        }
+        throw e;
+      }
+    }
+
+    return res.status(201).json({
+      createdCount: created.length,
+      created,
+      skipped,
+      message: skipped.length
+        ? 'Some models already existed and were skipped'
+        : 'Models created'
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
