@@ -34,12 +34,12 @@ router.get('/', async (req, res) => {
 // POST /api/users/login
 router.post('/login', async (req, res) => {
   try {
-    const { mobile_number, password } = req.body;
-    const user = await User.findOne({ mobile_number });
+    const { contact_number, password } = req.body;
+    const user = await User.findOne({ contact_number });
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     if (password === user.password) {
-      res.json({ user: { id: user._id, name: user.name, mobile_number: user.mobile_number } });
+      res.json({ user: { id: user._id, name: user.name, contact_number: user.contact_number } });
     } else {
       return res.status(400).json({ message: 'Invalid credentials' });
     }

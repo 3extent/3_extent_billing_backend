@@ -27,7 +27,12 @@ router.get('/', async (req, res) => {
 
     const models = await Model.find(filter).populate('brand');
 
-    res.json(models);
+    const response = models.map((singleModel) => {
+
+      return `${singleModel.name} + ${singleModel.ramStorage}`
+    })
+
+    res.json(response);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }

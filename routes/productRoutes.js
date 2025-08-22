@@ -9,7 +9,7 @@ const User = require('../models/User');
 router.get('/', async (req, res) => {
   try {
     console.log(req.query);
-    const { imei_number, grade, createdAt, brandName, modelName } = req.query;
+    const { imei_number, grade, createdAt, brandName, modelName, status } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -18,6 +18,10 @@ router.get('/', async (req, res) => {
 
     if (grade) {
       filter.grade = { $regex: grade, $options: 'i' }; // partial, case-insensitive match
+    }
+
+    if (status) {
+      filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
 
     if (createdAt) filter.createdAt = createdAt;
@@ -55,82 +59,60 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/products/ - Create single or multiple products
+// POST /api/products/ - Create single product
 router.post('/', async (req, res) => {
   try {
-    const productsData = Array.isArray(req.body) ? req.body : [req.body];
-    const createdProducts = [];
-    const errors = [];
+    const productData = req.body;
+    const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
 
-    for (let i = 0; i < productsData.length; i++) {
-      const productData = productsData[i];
-      const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
-
-      try {
-        // Find the model by name
-        const model = await Model.findOne({ name: model_name });
-        if (!model) {
-          errors.push({ index: i, error: 'Model not found', data: productData });
-          continue;
-        }
-
-        // Find the supplier by name
-        const supplier = await User.findOne({ name: supplier_name });
-        if (!supplier) {
-          errors.push({ index: i, error: 'Supplier not found', data: productData });
-          continue;
-        }
-
-        // Create new product
-        const product = new Product({
-          model,
-          imei_number,
-          sales_price,
-          purchase_price,
-          grade,
-          engineer_name,
-          accessories,
-          supplier,
-          qc_remark,
-          status,
-          createdAt: new Date().toISOString()
-        });
-
-        await product.save();
-        createdProducts.push(product);
-      } catch (productError) {
-        errors.push({ index: i, error: productError.message, data: productData });
-      }
+    // Find the model by name
+    const model = await Model.findOne({ name: model_name });
+    if (!model) {
+      return res.status(400).json({ error: 'Model not found' });
     }
 
-    // Return results
-    if (createdProducts.length === 0) {
-      return res.status(400).json({
-        error: 'No products were created',
-        errors
-      });
+    // Find the supplier by name
+    const supplier = await User.findOne({ name: supplier_name });
+    if (!supplier) {
+      return res.status(400).json({ error: 'Supplier not found' });
     }
 
-    if (errors.length > 0) {
-      return res.status(207).json({ // 207 Multi-Status
-        message: 'Some products were created successfully',
-        created: createdProducts.length,
-        failed: errors.length,
-        createdProducts,
-        errors
-      });
+    // IMEI rules:
+    // 1) If an existing product with same IMEI has AVAILABLE status -> reject
+    // 2) If an existing product with same IMEI has SOLD status -> mark existing as RETURN, new product becomes AVAILABLE
+    const existingWithSameImei = await Product.find({ imei_number }).select('status imei_number');
+    const hasAvailableExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'AVAILABLE');
+    if (hasAvailableExisting) {
+      return res.status(400).json({ error: 'IMEI already exists with AVAILABLE status' });
     }
 
-    // All products created successfully
-    if (productsData.length === 1) {
-      res.json(createdProducts[0]); // Return single product for backward compatibility
-    } else {
-      res.json({
-        message: 'All products created successfully',
-        count: createdProducts.length,
-        products: createdProducts
-      });
+    const hasSoldExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'SOLD');
+    if (hasSoldExisting) {
+      await Product.updateMany(
+        { imei_number, status: { $regex: '^SOLD$', $options: 'i' } },
+        { status: 'RETURN' }
+      );
     }
+
+    const finalStatusForNew = hasSoldExisting ? 'AVAILABLE' : status;
+
+    // Create new product
+    const product = new Product({
+      model,
+      imei_number,
+      sales_price,
+      purchase_price,
+      grade,
+      engineer_name,
+      accessories,
+      supplier,
+      qc_remark,
+      status: finalStatusForNew,
+      createdAt: new Date().toISOString()
+    });
+
+    await product.save();
+    res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
