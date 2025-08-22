@@ -41,11 +41,18 @@ router.get('/', async (req, res) => {
 // POST /api/models
 router.post('/', async (req, res) => {
   try {
-    const { name, brand, ramStorage } = req.body;
+    const { name, brand_name, ramStorage } = req.body;
 
-    if (!name || !brand) {
-      return res.status(400).json({ error: 'name and brand are required' });
+    if (!name || !brand_name) {
+      return res.status(400).json({ error: 'name and brand_name are required' });
     }
+
+    // Find brand by name (case-insensitive)
+    const brandDoc = await Brand.findOne({ name: { $regex: brand_name, $options: 'i' } });
+    if (!brandDoc) {
+      return res.status(404).json({ error: 'Brand not found' });
+    }
+    const brandId = brandDoc._id;
 
     const ramStorageList = Array.isArray(ramStorage)
       ? ramStorage
@@ -59,13 +66,13 @@ router.post('/', async (req, res) => {
     const skipped = [];
 
     for (const ram of ramStorageList) {
-      const exists = await Model.findOne({ name, brand, ramStorage: ram });
+      const exists = await Model.findOne({ name, brand: brandId, ramStorage: ram });
       if (exists) {
         skipped.push(ram);
         continue;
       }
 
-      const model = new Model({ name, brand, ramStorage: ram });
+      const model = new Model({ name, brand: brandId, ramStorage: ram });
       try {
         await model.save();
         created.push(model);
