@@ -27,12 +27,12 @@ router.get('/', async (req, res) => {
 
     const models = await Model.find(filter).populate('brand');
 
-    const response = models.map((singleModel) => {
+    // const response = models.map((singleModel) => {
 
-      return `${singleModel.name} + ${singleModel.ramStorage}`
-    })
+    //   return {`${singleModel.name} + ${singleModel.ramStorage}`}
+    // })
 
-    res.json(response);
+    res.json(models);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
@@ -72,7 +72,7 @@ router.post('/', async (req, res) => {
         continue;
       }
 
-      const model = new Model({ name, brand: brandId, ramStorage: ram });
+      const model = new Model({ name: `${name} + ${ram}`, brand: brandId });
       try {
         await model.save();
         created.push(model);
