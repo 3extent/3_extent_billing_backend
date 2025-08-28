@@ -11,27 +11,35 @@ router.get('/', async (req, res) => {
     const { customer_name, status, payment_status, createdAt } = req.query;
 
     let filter = {};
+
     if (customer_name) {
-      filter.customer = customer_name; // Search by customer ID
+      const userFromDB = await User.findOne({ name: { $regex: customer_name, $options: 'i' } });
+      console.log(userFromDB);
+      filter.customer = userFromDB.name; // Search by customer ID
     }
+
+    if (contact_number) {
+      const userFromDB = await User.findOne({ name: { $regex: contact_number, $options: 'i' } });
+      console.log(userFromDB);
+      filter.contact_number = userFromDB.contact_number; // Search by customer ID
+    }
+
     if (status) {
       filter.status = { $regex: status, $options: 'i' };
     }
-    if (payment_status) {
-      filter.payment_status = { $regex: payment_status, $options: 'i' };
-    }
+
     if (createdAt) {
       filter.createdAt = { $regex: createdAt, $options: 'i' };
     }
 
     const billings = await Billing.find(filter)
       .populate('customer')
-      .populate({ 
-        path: 'products', 
-        populate: { 
-          path: 'model', 
-          populate: { path: 'brand' } 
-        } 
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
       })
       .sort({ createdAt: -1 }); // Sort by newest first
 
@@ -46,12 +54,12 @@ router.get('/:id', async (req, res) => {
   try {
     const billing = await Billing.findById(req.params.id)
       .populate('customer')
-      .populate({ 
-        path: 'products', 
-        populate: { 
-          path: 'model', 
-          populate: { path: 'brand' } 
-        } 
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
       });
 
     if (!billing) {
@@ -71,14 +79,14 @@ router.post('/', async (req, res) => {
 
     // Validate required fields
     if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ 
-        error: 'Customer name, contact number, and products array are required' 
+      return res.status(400).json({
+        error: 'Customer name, contact number, and products array are required'
       });
     }
 
     // Check if customer already exists based on contact number
     let existingCustomer = await User.findOne({ contact_number: contact_number });
-    
+
     let customerId;
     if (existingCustomer) {
       // Customer exists, use existing customer ID
@@ -92,7 +100,7 @@ router.post('/', async (req, res) => {
         role: 'customer',
         createdAt: new Date().toISOString()
       });
-      
+
       await newCustomer.save();
       customerId = newCustomer._id;
       console.log(`Created new customer: ${newCustomer.name} (${newCustomer.contact_number})`);
@@ -105,14 +113,14 @@ router.post('/', async (req, res) => {
     for (const productId of products) {
       const product = await Product.findById(productId);
       if (!product) {
-        return res.status(400).json({ 
-          error: `Product with ID ${productId} not found` 
+        return res.status(400).json({
+          error: `Product with ID ${productId} not found`
         });
       }
 
       if (product.status === 'sold') {
-        return res.status(400).json({ 
-          error: `Product with IMEI ${product.imei_number} is already sold` 
+        return res.status(400).json({
+          error: `Product with IMEI ${product.imei_number} is already sold`
         });
       }
 
@@ -126,8 +134,6 @@ router.post('/', async (req, res) => {
       products: productIds,
       total_amount,
       payment_status: payment_status || 'pending',
-      payment_method: payment_method || 'cash',
-      status: status || 'active',
       createdAt: new Date().toISOString()
     });
 
@@ -142,12 +148,12 @@ router.post('/', async (req, res) => {
     // Populate the billing record with customer and product details
     const populatedBilling = await Billing.findById(billing._id)
       .populate('customer')
-      .populate({ 
-        path: 'products', 
-        populate: { 
-          path: 'model', 
-          populate: { path: 'brand' } 
-        } 
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
       });
 
     res.json({

@@ -17,7 +17,9 @@ userSchema.pre('save', async function (next) {
   if (this.isNew && !this.user_id) {
     try {
       const lastUser = await this.constructor.findOne({}, {}, { sort: { 'user_id': -1 } });
+      console.log(this.lastUser)
       this.user_id = lastUser ? lastUser.user_id + 1 : 1;
+      console.log(this.user_id)
     } catch (error) {
       return next(error);
     }

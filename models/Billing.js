@@ -4,15 +4,13 @@ const billingSchema = new mongoose.Schema({
   bill_id: { type: Number, unique: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-  total_amount: Number, 
-  payment_status: String,
-  payment_String: String,
+  total_amount: Number,
   status: String,
   createdAt: String
 });
 
 // Auto-increment bill_id before saving
-billingSchema.pre('save', async function(next) {
+billingSchema.pre('save', async function (next) {
   if (this.isNew && !this.bill_id) {
     try {
       const lastBilling = await this.constructor.findOne({}, {}, { sort: { 'bill_id': -1 } });
