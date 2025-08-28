@@ -21,7 +21,7 @@ router.get('/', async (req, res) => {
     if (contact_number) {
       const userFromDB = await User.findOne({ name: { $regex: contact_number, $options: 'i' } });
       console.log(userFromDB);
-      filter.contact_number = userFromDB._id; // Search by customer ID
+      filter.customer = userFromDB._id; // Search by customer ID
     }
 
     if (status) {
