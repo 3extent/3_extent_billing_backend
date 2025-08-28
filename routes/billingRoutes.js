@@ -15,13 +15,13 @@ router.get('/', async (req, res) => {
     if (customer_name) {
       const userFromDB = await User.findOne({ name: { $regex: customer_name, $options: 'i' } });
       console.log(userFromDB);
-      filter.customer = userFromDB.name; // Search by customer ID
+      filter.customer = userFromDB._id; // Search by customer ID
     }
 
     if (contact_number) {
       const userFromDB = await User.findOne({ name: { $regex: contact_number, $options: 'i' } });
       console.log(userFromDB);
-      filter.contact_number = userFromDB.contact_number; // Search by customer ID
+      filter.contact_number = userFromDB._id; // Search by customer ID
     }
 
     if (status) {
