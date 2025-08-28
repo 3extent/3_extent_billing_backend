@@ -8,7 +8,7 @@ const Product = require('../models/Product');
 // GET /api/billings
 router.get('/', async (req, res) => {
   try {
-    const { customer_name, status, payment_status, createdAt } = req.query;
+    const { customer_name, contact_number, status, createdAt } = req.query;
 
     let filter = {};
 
