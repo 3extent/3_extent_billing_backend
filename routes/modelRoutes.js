@@ -26,13 +26,6 @@ router.get('/', async (req, res) => {
     }
 
     let models = await Model.find(filter).populate('brand');
-    models = models.map(model => {
-      return {
-        ...model,
-        ramStorage: model.ramStorage.map(ram => `${ram.ram} ${ram.storage}GB`)
-      }
-    });
-
 
     res.json(models);
   } catch (err) {
@@ -68,18 +61,16 @@ router.post('/', async (req, res) => {
     const skipped = [];
 
     for (const ram of ramStorageList) {
-      const exists = await Model.findOne({ 
-        name, 
-        brand: brandId, 
-        'ramStorage.ram': ram.ram, 
-        'ramStorage.storage': ram.storage 
+      const exists = await Model.findOne({
+        name: `${name} ${ram.ram}/${ram.storage}GB`,
+        brand: brandId,
       });
       if (exists) {
         skipped.push(ram);
         continue;
       }
 
-      const model = new Model({ name, brand: brandId, ramStorage: [ram] });
+      const model = new Model({ name: `${name} ${ram.ram}/${ram.storage}GB`, brand: brandId });
       try {
         await model.save();
         created.push(model);
