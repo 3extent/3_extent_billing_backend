@@ -110,22 +110,22 @@ router.post('/', async (req, res) => {
     const productIds = [];
     const updatedProducts = [];
 
-    for (const productId of products) {
-      const product = await Product.findById(productId);
+    for (const singleProduct of products) {
+      const product = await Product.findById(singleProduct._id);
       if (!product) {
         return res.status(400).json({
-          error: `Product with ID ${productId} not found`
+          error: `Product with ID ${singleProduct._id} not found`
         });
       }
 
-      if (product.status === 'sold') {
+      if (product.status === 'SOLD') {
         return res.status(400).json({
           error: `Product with IMEI ${product.imei_number} is already sold`
         });
       }
 
-      productIds.push(productId);
-      updatedProducts.push(product);
+      productIds.push(singleProduct._id);
+      updatedProducts.push(singleProduct);
     }
 
     // Create billing record
@@ -141,7 +141,7 @@ router.post('/', async (req, res) => {
 
     // Update all products status to 'sold'
     for (const product of updatedProducts) {
-      product.status = 'sold';
+      product.status = 'SOLD';
       await product.save();
     }
 
@@ -159,7 +159,7 @@ router.post('/', async (req, res) => {
     res.json({
       message: 'Billing created successfully and products marked as sold',
       billing: populatedBilling,
-      productsUpdated: productIds.length,
+      productsUpdated: products.length,
       customerInfo: {
         id: customerId,
         name: customer_name,
