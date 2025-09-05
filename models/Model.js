@@ -2,7 +2,6 @@ const mongoose = require('mongoose');
 
 const modelSchema = new mongoose.Schema({
   name: String,
-  ramStorage: [{ ram: String, storage: String }],
   brand: { type: mongoose.Schema.Types.ObjectId, ref: 'Brand' }
 });
 
