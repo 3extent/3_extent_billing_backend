@@ -12,20 +12,7 @@ const productSchema = new mongoose.Schema({
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: String,
   qc_remark: String,
-  createdAt: String
-});
-
-// Auto-increment product_id before saving
-productSchema.pre('save', async function(next) {
-  if (this.isNew && !this.product_id) {
-    try {
-      const lastModel = await this.constructor.findOne({}, {}, { sort: { 'product_id': -1 } });
-      this.product_id = lastModel ? lastModel.product_id + 1 : 1;
-    } catch (error) {
-      return next(error);
-    }
-  }
-  next();
+  created_at: String
 });
 
 module.exports = mongoose.model('Product', productSchema);

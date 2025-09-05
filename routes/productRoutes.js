@@ -9,7 +9,7 @@ const User = require('../models/User');
 router.get('/', async (req, res) => {
   try {
     console.log(req.query);
-    const { imei_number, grade, createdAt, brandName, modelName, status } = req.query;
+    const { imei_number, grade, brandName, modelName, status, from, to } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -24,7 +24,22 @@ router.get('/', async (req, res) => {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
 
-    if (createdAt) filter.createdAt = createdAt;
+    // Date range filtering with milliseconds support
+    if (from || to) {
+      filter.created_at = {};
+      if (from) {
+        // Parse milliseconds and convert to start of day
+        const fromDate = new Date(parseInt(from));
+        fromDate.setHours(0, 0, 0, 0); // Start of day (00:00:00.000)
+        filter.created_at.$gte = fromDate;
+      }
+      if (to) {
+        // Parse milliseconds and convert to end of day
+        const toDate = new Date(parseInt(to));
+        toDate.setHours(23, 59, 59, 999); // End of day (23:59:59.999)
+        filter.created_at.$lte = toDate;
+      }
+    }
 
 
     if (brandName) {
@@ -108,7 +123,7 @@ router.post('/', async (req, res) => {
       supplier,
       qc_remark,
       status: finalStatusForNew,
-      createdAt: new Date().toISOString()
+      created_at: Date.now() // Store as milliseconds
     });
 
     await product.save();
