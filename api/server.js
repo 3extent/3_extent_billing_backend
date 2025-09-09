@@ -1,39 +1,50 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
-const userRoutes = require('./../routes/userRoutes');
-const productRoutes = require('./../routes/productRoutes');
-const brandRoutes = require('./../routes/brandRoutes');
-const modelRoutes = require('./../routes/modelRoutes');
-const billingRoutes = require('./../routes/billingRoutes');
-
-const User = require('../models/User');
 const cors = require('cors');
 
 dotenv.config();
 const app = express();
 
-app.use(express.json()); // Middleware to parse JSON
+app.use(express.json());
 app.use(cors());
 
-app.use('/api/users', userRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/brands', brandRoutes);
-app.use('/api/models', modelRoutes);
-app.use('/api/billings', billingRoutes);
+// Import routes
+app.use('/api/users', require('./../routes/userRoutes'));
+app.use('/api/products', require('./../routes/productRoutes'));
+app.use('/api/brands', require('./../routes/brandRoutes'));
+app.use('/api/models', require('./../routes/modelRoutes'));
+app.use('/api/billings', require('./../routes/billingRoutes'));
 
-mongoose.connect('mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-  .then(() => {
-    console.log('MongoDB connected');
-    app.listen(5000, () => {
-      console.log(`Server running on port 5000`);
+// Database connection helper for serverless environments
+let isConnected = false;
+async function connectToDB() {
+  if (isConnected) return;
+  try {
+    await mongoose.connect("mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing", {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      connectTimeoutMS: 30000,       // Increase connection timeout to 30 seconds
+      serverSelectionTimeoutMS: 30000 // Wait up to 30 seconds for server selection
     });
-  })
-  .catch((err) => console.error(err));
+    isConnected = true;
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+    throw err;
+  }
+}
 
+// Setup server
+(async () => {
+  try {
+    await connectToDB();
+    app.listen(process.env.PORT || 5000, () => {
+      console.log(`Server running on port ${process.env.PORT || 5000}`);
+    });
+  } catch (err) {
+    process.exit(1);
+  }
+})();
 
-// Export the Express app as a serverless function
 module.exports = app;
