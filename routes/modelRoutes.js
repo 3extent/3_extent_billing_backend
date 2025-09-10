@@ -3,7 +3,7 @@ const router = express.Router();
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
 
-// GET /models?modelName=Iphone&brandName=Samsung
+// GET /models?modelName=Iphone&brandName=Samsung - get all models
 router.get('/', async (req, res) => {
   try {
     const modelName = req.query.modelName;
@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/models
+// POST /api/models - create a new model
 router.post('/', async (req, res) => {
   try {
     const { name, brand_name, ramStorage } = req.body;
@@ -96,4 +96,29 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /api/models/:id - get a single model
+router.get('/:id', async (req, res) => {
+  try {
+    const model = await Model.findById(req.params.id);
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    res.json(model);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /api/models/:id - delete a single model
+router.delete('/:id', async (req, res) => {
+  try {
+    const model = await Model.findByIdAndDelete(req.params.id);
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    res.json(model);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 module.exports = router;
