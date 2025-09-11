@@ -11,7 +11,8 @@ const productSchema = new mongoose.Schema({
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: String,
   qc_remark: String,
-  created_at: String
+  created_at: String,
+  updated_at: String
 });
 
 module.exports = mongoose.model('Product', productSchema);

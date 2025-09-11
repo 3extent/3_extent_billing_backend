@@ -123,9 +123,50 @@ router.post('/', async (req, res) => {
       supplier,
       qc_remark,
       status: finalStatusForNew,
-      created_at: Date.now() // Store as milliseconds
+      created_at: Date.now(),
+      updated_at: Date.now()
     });
 
+    await product.save();
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/products/:id - update a single product
+router.put('/:id', async (req, res) => {
+  try {
+    const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = req.body;
+    
+    const existingProduct = await Product.findOne({ imei_number });
+    if (existingProduct) {
+      return res.status(400).json({ error: 'IMEI already exists' });
+    }
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const model = await Model.findOne({ name: model_name });
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    const supplier = await User.findOne({ name: supplier_name });
+    if (!supplier) {
+      return res.status(404).json({ error: 'Supplier not found' });
+    }
+    
+    product.model = model;
+    product.imei_number = imei_number;
+    product.sales_price = sales_price;
+    product.purchase_price = purchase_price;
+    product.grade = grade;
+    product.engineer_name = engineer_name;
+    product.accessories = accessories;
+    product.supplier = supplier;
+    product.qc_remark = qc_remark;
+    product.status = status;
+    product.updated_at = Date.now();
     await product.save();
     res.json(product);
   } catch (err) {

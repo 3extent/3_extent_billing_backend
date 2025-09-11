@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
         continue;
       }
 
-      const model = new Model({ name: `${name} ${ram.ram}/${ram.storage}GB`, brand: brandId });
+      const model = new Model({ name: `${name} ${ram.ram}/${ram.storage}GB`, brand: brandId, created_at: Date.now(), updated_at: Date.now() });
       try {
         await model.save();
         created.push(model);
@@ -123,7 +123,7 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Brand not found' });
     }
     const brandId = brandDoc._id;
-    const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId }, { new: true }).populate('brand');
+    const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId, updated_at: Date.now() }, { new: true }).populate('brand');
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
     }

@@ -31,7 +31,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Brand already exists' });
     }
 
-    const brand = new Brand({ name });
+    const brand = new Brand({ name, created_at: Date.now(), updated_at: Date.now() });
     await brand.save();
     res.json(brand);
   } catch (err) {
@@ -57,7 +57,7 @@ router.put('/:id', async (req, res) => {
     if (existingBrand) {
       return res.status(400).json({ error: 'Brand already exists' });
     }
-    const brand = await Brand.findByIdAndUpdate(req.params.id, { name }, { new: true });
+    const brand = await Brand.findByIdAndUpdate(req.params.id, { name, updated_at: Date.now() }, { new: true });
     if (!brand) {
       return res.status(404).json({ error: 'Brand not found' });
     }

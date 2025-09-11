@@ -10,7 +10,9 @@ const userSchema = new mongoose.Schema({
   address: String,
   gst_number: String,
   pan_number: String,
-  role: String
+  role: String,
+  created_at: String,
+  updated_at: String
 });
 
 module.exports = mongoose.model('User', userSchema);
