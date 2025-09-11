@@ -50,14 +50,18 @@ router.post('/login', async (req, res) => {
 
 // POST /api/users
 router.post('/', async (req, res) => {
+  console.log(req.body);
   try {
     const { name, contact_number, contact_number2, role, state, address, gst_number, pan_number, firm_name } = req.body;
     const existingUser = await User.findOne({ contact_number });
+    console.log(existingUser);
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
     const user = new User({ name, contact_number, contact_number2, role, state, address, gst_number, pan_number, firm_name });
+    console.log(user);
     await user.save();
+    console.log(user);
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -90,20 +94,5 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-
-// DELETE /api/users/:id - delete a single user
-router.delete('/:id', async (req, res) => {
-  try {
-    const user = await User.findByIdAndDelete(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 
 module.exports = router;

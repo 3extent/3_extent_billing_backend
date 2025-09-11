@@ -26,6 +26,7 @@ router.get('/', async (req, res) => {
     }
 
     let models = await Model.find(filter).populate('brand');
+    console.log(models);
 
     res.json(models);
   } catch (err) {
@@ -109,16 +110,4 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/models/:id - delete a single model
-router.delete('/:id', async (req, res) => {
-  try {
-    const model = await Model.findByIdAndDelete(req.params.id);
-    if (!model) {
-      return res.status(404).json({ error: 'Model not found' });
-    }
-    res.json(model);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 module.exports = router;

@@ -48,10 +48,15 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // PUT /api/brand/:id - update a single brand
 router.put('/:id', async (req, res) => {
   try {
     const { name } = req.body;
+    const existingBrand = await Brand.findOne({ name });
+    if (existingBrand) {
+      return res.status(400).json({ error: 'Brand already exists' });
+    }
     const brand = await Brand.findByIdAndUpdate(req.params.id, { name }, { new: true });
     if (!brand) {
       return res.status(404).json({ error: 'Brand not found' });
@@ -60,20 +65,6 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-
-// DELETE /api/brand/:id - delete a single brand      
-router.delete('/:id', async (req, res) => {
-  try {
-    const brand = await Brand.findByIdAndDelete(req.params.id);
-    if (!brand) {
-      return res.status(404).json({ error: 'Brand not found' });
-    }
-    res.json(brand);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+})
 
 module.exports = router;
