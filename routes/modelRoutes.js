@@ -114,15 +114,16 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { name, brand_name } = req.body;
-    const existingModel = await Model.findOne({ name });
-    if (existingModel) {
-      return res.status(400).json({ error: 'Model already exists' });
-    }
+    console.log(name, brand_name);
     const brandDoc = await Brand.findOne({ name: { $regex: brand_name, $options: 'i' } });
     if (!brandDoc) {
       return res.status(404).json({ error: 'Brand not found' });
     }
     const brandId = brandDoc._id;
+    const existingModel = await Model.findOne({ name, brand: brandId });
+    if (existingModel) {
+      return res.status(400).json({ error: 'Model already exists' });
+    }
     const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId, updated_at: Date.now() }, { new: true }).populate('brand');
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
