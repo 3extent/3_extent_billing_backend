@@ -110,4 +110,27 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/models/:id - update a single model  
+router.put('/:id', async (req, res) => {
+  try {
+    const { name, brand_name } = req.body;
+    const existingModel = await Model.findOne({ name });
+    if (existingModel) {
+      return res.status(400).json({ error: 'Model already exists' });
+    }
+    const brandDoc = await Brand.findOne({ name: { $regex: brand_name, $options: 'i' } });
+    if (!brandDoc) {
+      return res.status(404).json({ error: 'Brand not found' });
+    }
+    const brandId = brandDoc._id;
+    const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId }, { new: true });
+    if (!model) {
+      return res.status(404).json({ error: 'Model not found' });
+    }
+    res.json(model);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
