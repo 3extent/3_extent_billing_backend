@@ -100,7 +100,7 @@ router.post('/', async (req, res) => {
 // GET /api/models/:id - get a single model
 router.get('/:id', async (req, res) => {
   try {
-    const model = await Model.findById(req.params.id);
+    const model = await Model.findById(req.params.id).populate('brand');
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
     }
