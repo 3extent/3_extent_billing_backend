@@ -123,7 +123,7 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Brand not found' });
     }
     const brandId = brandDoc._id;
-    const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId }, { new: true });
+    const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId }, { new: true }).populate('brand');
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
     }
