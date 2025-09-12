@@ -188,4 +188,17 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/products/:id - delete a single product      
+router.delete('/:id', async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
