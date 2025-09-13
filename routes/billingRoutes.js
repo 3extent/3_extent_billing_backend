@@ -185,6 +185,19 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/calculate_amount -Calculate total amount
+router.post('/calculate_amount', async (req, res) => {
+  try {
+    const { products } = req.body;
+    let total_amount = 0;
+    for (const singleProduct of products) {
+      total_amount += (singleProduct.rate)
+    }
+    res.json({ total_amount })
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 
 module.exports = router;
