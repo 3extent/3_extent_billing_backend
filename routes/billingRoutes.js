@@ -75,12 +75,12 @@ router.get('/:id', async (req, res) => {
 // POST /api/billing
 router.post('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, products, total_amount, payment_status, payment_method, status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount } = req.body;
 
     // Validate required fields
-    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0) {
+    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
       return res.status(400).json({
-        error: 'Customer name, contact number, and products array are required'
+        error: 'Customer name, contact number, payable_amount, paid_amount and products array are required'
       });
     }
 
@@ -107,7 +107,7 @@ router.post('/', async (req, res) => {
     }
 
     // Validate products and update their status to 'sold'
-    const productIds = [];
+    const foundProducts = [];
     const updatedProducts = [];
 
     for (const singleProduct of products) {
@@ -124,24 +124,34 @@ router.post('/', async (req, res) => {
         });
       }
 
-      productIds.push(product._id);
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate });
       updatedProducts.push(product);
     }
+
 
     // Create billing record
     const billing = new Billing({
       customer: customerId,
-      products: productIds,
-      total_amount,
-      payment_status: payment_status || 'pending',
-      createdAt: new Date().toISOString()
+      products: foundProducts.map((singleProduct) => singleProduct.productId),
+      payable_amount,
+      paid_amount,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     });
 
     await billing.save();
 
     // Update all products status to 'sold'
+    // Update all products status to 'sold'
     for (const product of updatedProducts) {
       product.status = 'SOLD';
+
+      // Find the corresponding final_rate from foundProducts
+      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      if (foundProduct) {
+        product.final_rate = foundProduct.final_rate;
+      }
+
       await product.save();
     }
 
@@ -168,6 +178,29 @@ router.post('/', async (req, res) => {
       }
     });
 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/billings/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const billing = await Billing.findById(req.params.id)
+      .populate('customer')
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
+      });
+
+    if (!billing) {
+      return res.status(404).json({ error: 'Billing not found' });
+    }
+
+    res.json(billing);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
