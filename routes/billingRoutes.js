@@ -135,6 +135,8 @@ router.post('/', async (req, res) => {
       products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
       paid_amount,
+      pending_amount: payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0),
+      paid_amount,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -183,27 +185,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// POST /api/billings/:id
-router.get('/:id', async (req, res) => {
-  try {
-    const billing = await Billing.findById(req.params.id)
-      .populate('customer')
-      .populate({
-        path: 'products',
-        populate: {
-          path: 'model',
-          populate: { path: 'brand' }
-        }
-      });
 
-    if (!billing) {
-      return res.status(404).json({ error: 'Billing not found' });
-    }
-
-    res.json(billing);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 module.exports = router;
