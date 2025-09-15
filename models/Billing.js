@@ -3,7 +3,10 @@ const mongoose = require('mongoose');
 const billingSchema = new mongoose.Schema({
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-  total_amount: Number,
+  payable_amount: String,
+  paid_amount: String,
+  pending_amount: String,
+  profit: String,
   status: String,
   createdAt: String
 });

@@ -134,7 +134,6 @@ router.post('/', async (req, res) => {
       customer: customerId,
       products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
-      paid_amount,
       pending_amount: payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0),
       paid_amount,
       createdAt: new Date().toISOString(),
