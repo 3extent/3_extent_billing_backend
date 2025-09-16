@@ -75,7 +75,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/billing
 router.post('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, products, payable_amount, paid_amount } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
     if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
@@ -128,6 +128,19 @@ router.post('/', async (req, res) => {
       updatedProducts.push(product);
     }
 
+    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+
+
+    if (pending_amount > 0) {
+      if (pending_amount !== payable_amount) {
+        status = "PARTIALLY_PAID"
+      } else {
+        status = "UNPAID"
+      }
+    } else {
+      status = "PAID"
+    }
+
 
     // Create billing record
     const billing = new Billing({
@@ -137,7 +150,8 @@ router.post('/', async (req, res) => {
       pending_amount: payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0),
       paid_amount,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      status: status
     });
 
     await billing.save();
