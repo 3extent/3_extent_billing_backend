@@ -40,10 +40,10 @@ router.get('/', async (req, res) => {
     if (from || to) {
       const range = {};
       if (from && !Number.isNaN(Number(from))) {
-        range.$gte = new Date(Number(from)).toISOString();
+        range.$gte = Number(from);
       }
       if (to && !Number.isNaN(Number(to))) {
-        range.$lte = new Date(Number(to)).toISOString();
+        range.$lte = Number(to);
       }
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
@@ -116,7 +116,7 @@ router.post('/', async (req, res) => {
         name: customer_name,
         contact_number: contact_number,
         role: 'customer',
-        created_at: new Date().toISOString()
+        created_at: Date.now()
       });
 
       await newCustomer.save();
@@ -168,8 +168,8 @@ router.post('/', async (req, res) => {
       payable_amount,
       pending_amount: payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0),
       paid_amount,
-      created_at: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      created_at: Date.now(),
+      updatedAt: Date.now(),
       status: billStatus
     });
 
