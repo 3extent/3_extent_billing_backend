@@ -131,14 +131,15 @@ router.post('/', async (req, res) => {
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
 
 
+    let billStatus = status;
     if (pending_amount > 0) {
       if (pending_amount !== payable_amount) {
-        status = "PARTIALLY_PAID"
+        billStatus = "PARTIALLY_PAID"
       } else {
-        status = "UNPAID"
+        billStatus = "UNPAID"
       }
     } else {
-      status = "PAID"
+      billStatus = "PAID"
     }
 
 
@@ -151,7 +152,7 @@ router.post('/', async (req, res) => {
       paid_amount,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      status: status
+      status: billStatus
     });
 
     await billing.save();
@@ -193,20 +194,6 @@ router.post('/', async (req, res) => {
       }
     });
 
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/calculate_amount -Calculate total amount
-router.post('/calculate_amount', async (req, res) => {
-  try {
-    const { products } = req.body;
-    let total_amount = 0;
-    for (const singleProduct of products) {
-      total_amount += (singleProduct.rate)
-    }
-    res.json({ total_amount })
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
