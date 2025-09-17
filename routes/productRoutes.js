@@ -24,20 +24,17 @@ router.get('/', async (req, res) => {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
 
-    // Date range filtering with milliseconds support
+    // Date range filtering (from/to in milliseconds)
     if (from || to) {
-      filter.created_at = {};
-      if (from) {
-        // Parse milliseconds and convert to start of day
-        const fromDate = new Date(parseInt(from));
-        fromDate.setHours(0, 0, 0, 0); // Start of day (00:00:00.000)
-        filter.created_at.$gte = fromDate;
+      const range = {};
+      if (from && !Number.isNaN(Number(from))) {
+        range.$gte = new Date(Number(from)).toISOString();
       }
-      if (to) {
-        // Parse milliseconds and convert to end of day
-        const toDate = new Date(parseInt(to));
-        toDate.setHours(23, 59, 59, 999); // End of day (23:59:59.999)
-        filter.created_at.$lte = toDate;
+      if (to && !Number.isNaN(Number(to))) {
+        range.$lte = new Date(Number(to)).toISOString();
+      }
+      if (Object.keys(range).length > 0) {
+        filter.created_at = range;
       }
     }
 

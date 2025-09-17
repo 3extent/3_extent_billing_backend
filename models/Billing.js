@@ -12,7 +12,7 @@ const billingSchema = new mongoose.Schema({
   pending_amount: String,
   profit: String,
   status: String,
-  createdAt: String
+  created_at: String
 });
 
 module.exports = mongoose.model('Billing', billingSchema);

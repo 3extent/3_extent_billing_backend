@@ -46,7 +46,7 @@ router.get('/', async (req, res) => {
         range.$lte = new Date(Number(to)).toISOString();
       }
       if (Object.keys(range).length > 0) {
-        filter.createdAt = range;
+        filter.created_at = range;
       }
     }
 
@@ -59,7 +59,7 @@ router.get('/', async (req, res) => {
           populate: { path: 'brand' }
         }
       })
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ created_at: -1 }); // Sort by newest first
 
     res.json(billings);
   } catch (err) {
@@ -116,7 +116,7 @@ router.post('/', async (req, res) => {
         name: customer_name,
         contact_number: contact_number,
         role: 'customer',
-        createdAt: new Date().toISOString()
+        created_at: new Date().toISOString()
       });
 
       await newCustomer.save();
@@ -168,7 +168,7 @@ router.post('/', async (req, res) => {
       payable_amount,
       pending_amount: payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0),
       paid_amount,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       status: billStatus
     });
