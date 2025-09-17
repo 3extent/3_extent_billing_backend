@@ -4,32 +4,50 @@ const Billing = require('../models/Billing');
 const User = require('../models/User');
 const Product = require('../models/Product');
 
-
 // GET /api/billings
 router.get('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, status, createdAt } = req.query;
+    const { customer_name, contact_number, status, from, to } = req.query;
 
     let filter = {};
 
     if (customer_name) {
       const userFromDB = await User.findOne({ name: { $regex: customer_name, $options: 'i' } });
       console.log(userFromDB);
-      filter.customer = userFromDB._id; // Search by customer ID
+      if (userFromDB) {
+        filter.customer = userFromDB._id; // Search by customer ID
+      } else {
+        // No matching customer; ensure no results
+        filter.customer = null;
+      }
     }
 
     if (contact_number) {
       const userFromDB = await User.findOne({ contact_number: { $regex: contact_number, $options: 'i' } });
       console.log(userFromDB);
-      filter.customer = userFromDB._id; // Search by customer ID
+      if (userFromDB) {
+        filter.customer = userFromDB._id; // Search by customer ID
+      } else {
+        filter.customer = null;
+      }
     }
 
     if (status) {
       filter.status = { $regex: status, $options: 'i' };
     }
 
-    if (createdAt) {
-      filter.createdAt = { $regex: createdAt, $options: 'i' };
+    // Date range filtering (from/to in milliseconds)
+    if (from || to) {
+      const range = {};
+      if (from && !Number.isNaN(Number(from))) {
+        range.$gte = new Date(Number(from)).toISOString();
+      }
+      if (to && !Number.isNaN(Number(to))) {
+        range.$lte = new Date(Number(to)).toISOString();
+      }
+      if (Object.keys(range).length > 0) {
+        filter.createdAt = range;
+      }
     }
 
     const billings = await Billing.find(filter)
