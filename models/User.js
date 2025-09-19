@@ -11,8 +11,8 @@ const userSchema = new mongoose.Schema({
   gst_number: String,
   pan_number: String,
   role: String,
-  created_at: String,
-  updated_at: String
+  created_at: Number,
+  updated_at: Number
 });
 
 module.exports = mongoose.model('User', userSchema);

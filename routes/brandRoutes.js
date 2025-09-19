@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Brand = require('../models/Brand');
-
+const moment = require('moment')
 
 // GET /api/brands?name="Samsung" - get all brands
 router.get('/', async (req, res) => {
@@ -31,7 +31,11 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Brand already exists' });
     }
 
-    const brand = new Brand({ name, created_at: Date.now(), updated_at: Date.now() });
+    const brand = new Brand({
+      name,
+      created_at: moment().valueOf(),
+      updated_at: moment().valueOf()
+    });
     await brand.save();
     res.json(brand);
   } catch (err) {
@@ -57,7 +61,12 @@ router.put('/:id', async (req, res) => {
     if (existingBrand) {
       return res.status(400).json({ error: 'Brand already exists' });
     }
-    const brand = await Brand.findByIdAndUpdate(req.params.id, { name, updated_at: Date.now() }, { new: true });
+    const brand = await Brand.findByIdAndUpdate(req.params.id,
+      {
+        name,
+        updated_at: moment().valueOf()
+      },
+      { new: true });
     if (!brand) {
       return res.status(404).json({ error: 'Brand not found' });
     }

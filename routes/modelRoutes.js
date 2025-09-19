@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
+const moment = require('moment')
 
 // GET /models?modelName=Iphone&brandName=Samsung - get all models
 router.get('/', async (req, res) => {
@@ -71,7 +72,12 @@ router.post('/', async (req, res) => {
         continue;
       }
 
-      const model = new Model({ name: `${name} ${ram.ram}/${ram.storage}GB`, brand: brandId, created_at: Date.now(), updated_at: Date.now() });
+      const model = new Model({
+        name: `${name} ${ram.ram}/${ram.storage}GB`,
+        brand: brandId,
+        created_at: moment().valueOf(),
+        updated_at: moment().valueOf()
+      });
       try {
         await model.save();
         created.push(model);
@@ -128,7 +134,14 @@ router.put('/:id', async (req, res) => {
     if (existingModel) {
       return res.status(400).json({ error: 'Model already exists' });
     }
-    const model = await Model.findByIdAndUpdate(req.params.id, { name, brand: brandId, updated_at: Date.now() }, { new: true }).populate('brand');
+    const model = await Model.findByIdAndUpdate(req.params.id,
+      {
+        name,
+        brand: brandId,
+        updated_at: moment().valueOf()
+      },
+      { new: true }
+    ).populate('brand');
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
     }

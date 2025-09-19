@@ -3,53 +3,47 @@ const router = express.Router();
 const Billing = require('../models/Billing');
 const User = require('../models/User');
 const Product = require('../models/Product');
+const moment = require('moment');
 
 // GET /api/billings
 router.get('/', async (req, res) => {
   try {
     const { customer_name, contact_number, status, from, to } = req.query;
 
-    let filter = {};
+    const filter = {};
 
-    if (customer_name) {
-      const userFromDB = await User.findOne({ name: { $regex: customer_name, $options: 'i' } });
-      console.log(userFromDB);
+    // Customer filter (by name or contact number)
+    if (customer_name || contact_number) {
+      const userQuery = {};
+      if (customer_name) {
+        userQuery.name = { $regex: customer_name, $options: 'i' };
+      }
+      if (contact_number) {
+        // Note: if both provided, it uses AND logic
+        userQuery.contact_number = { $regex: contact_number, $options: 'i' };
+      }
+      const userFromDB = await User.findOne(userQuery).select('_id');
       if (userFromDB) {
-        filter.customer = userFromDB._id; // Search by customer ID
+        filter.customer = userFromDB._id;
       } else {
-        // No matching customer; ensure no results
-        filter.customer = null;
+        // No user matching, return empty result early
+        return res.json([]);
       }
     }
 
-    if (contact_number) {
-      const userFromDB = await User.findOne({ contact_number: { $regex: contact_number, $options: 'i' } });
-      console.log(userFromDB);
-      if (userFromDB) {
-        filter.customer = userFromDB._id; // Search by customer ID
-      } else {
-        filter.customer = null;
-      }
-    }
-
+    // Status filter
     if (status) {
       filter.status = { $regex: status, $options: 'i' };
     }
 
-    // Date range filtering (from/to in milliseconds)
-    if (from || to) {
-      const range = {};
-      if (from && !Number.isNaN(Number(from))) {
-        range.$gte = Number(from);
-      }
-      if (to && !Number.isNaN(Number(to))) {
-        range.$lte = Number(to);
-      }
-      if (Object.keys(range).length > 0) {
-        filter.created_at = range;
-      }
-    }
+    const fromDate = new Date(Number(from)); // or parse from ISO string
+    const toDate = new Date(Number(to));   // etc.
 
+    filter.created_at = { $gte: fromDate, $lte: toDate }
+    console.log("filter",filter);
+    
+
+    // Fetch with filter
     const billings = await Billing.find(filter)
       .populate('customer')
       .populate({
@@ -59,11 +53,13 @@ router.get('/', async (req, res) => {
           populate: { path: 'brand' }
         }
       })
-      .sort({ created_at: -1 }); // Sort by newest first
+      .sort({ created_at: -1 });
 
     res.json(billings);
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Error in GET /api/billings:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -116,7 +112,7 @@ router.post('/', async (req, res) => {
         name: customer_name,
         contact_number: contact_number,
         role: 'customer',
-        created_at: Date.now()
+        created_at: moment().valueOf()
       });
 
       await newCustomer.save();
@@ -147,7 +143,8 @@ router.post('/', async (req, res) => {
     }
 
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
-
+    const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
+    const profit = payable_amount - totalCost;
 
     let billStatus = status;
     if (pending_amount > 0) {
@@ -160,16 +157,16 @@ router.post('/', async (req, res) => {
       billStatus = "PAID"
     }
 
-
     // Create billing record
     const billing = new Billing({
       customer: customerId,
       products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
-      pending_amount: payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0),
+      pending_amount: pending_amount,
       paid_amount,
-      created_at: Date.now(),
-      updatedAt: Date.now(),
+      profit: profit.toString(),
+      created_at: moment().valueOf(),
+      update_at: moment().valueOf(), // Fixed: was updatedAt
       status: billStatus
     });
 
@@ -216,6 +213,5 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 module.exports = router;
