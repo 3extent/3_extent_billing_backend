@@ -28,12 +28,12 @@ router.get('/', async (req, res) => {
     // Date range filtering (from/to in milliseconds)
     if (from || to) {
       const range = {};
-      if (from && !Number.isNaN(Number(from))) {
-        range.$gte = from;
-      }
-      if (to && !Number.isNaN(Number(to))) {
-        range.$lte = to;
-      }
+      // if (from && !Number.isNaN(Number(from))) {
+      range.$gte = new Date(from).now();
+      // }
+      // if (to && !Number.isNaN(Number(to))) {
+      range.$lte = new Date(to).now();
+      // }
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
       }

@@ -11,8 +11,8 @@ const productSchema = new mongoose.Schema({
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: String,
   qc_remark: String,
-  created_at: { type: Date, default: new Date() },
-  updated_at: { type: Date, default: new Date() }
+  created_at: { type: Date, default: new Date().now() },
+  updated_at: { type: Date, default: new Date().now() }
 });
 
 module.exports = mongoose.model('Product', productSchema);
