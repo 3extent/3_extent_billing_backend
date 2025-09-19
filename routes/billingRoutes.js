@@ -3,7 +3,6 @@ const router = express.Router();
 const Billing = require('../models/Billing');
 const User = require('../models/User');
 const Product = require('../models/Product');
-const moment = require('moment');
 
 // GET /api/billings
 router.get('/', async (req, res) => {
@@ -40,8 +39,8 @@ router.get('/', async (req, res) => {
     const toDate = new Date(Number(to));   // etc.
 
     filter.created_at = { $gte: fromDate, $lte: toDate }
-    console.log("filter",filter);
-    
+    console.log("filter", filter);
+
 
     // Fetch with filter
     const billings = await Billing.find(filter)
@@ -112,7 +111,7 @@ router.post('/', async (req, res) => {
         name: customer_name,
         contact_number: contact_number,
         role: 'customer',
-        created_at: moment().valueOf()
+        created_at: Date.now()
       });
 
       await newCustomer.save();
@@ -164,10 +163,10 @@ router.post('/', async (req, res) => {
       payable_amount,
       pending_amount: pending_amount,
       paid_amount,
+      status: billStatus,
       profit: profit.toString(),
-      created_at: moment().valueOf(),
-      update_at: moment().valueOf(), // Fixed: was updatedAt
-      status: billStatus
+      created_at: Date.now(),
+      update_at: Date.now()
     });
 
     await billing.save();

@@ -4,7 +4,6 @@ const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
 const User = require('../models/User');
-const moment = require('moment')
 
 // GET /api/products
 router.get('/', async (req, res) => {
@@ -112,8 +111,8 @@ router.post('/', async (req, res) => {
       supplier,
       qc_remark,
       status: finalStatusForNew,
-      created_at: moment().valueOf(),
-      updated_at: moment().valueOf()
+      created_at: Date.now(),
+      update_at: Date.now()
     });
 
     await product.save();
@@ -155,7 +154,7 @@ router.put('/:id', async (req, res) => {
     product.supplier = supplier;
     product.qc_remark = qc_remark;
     product.status = status;
-    product.updated_at = moment().valueOf();
+    product.updated_at = Date.now();
     await product.save();
     res.json(product);
   } catch (err) {
