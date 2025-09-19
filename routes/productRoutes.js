@@ -24,32 +24,33 @@ router.get('/', async (req, res) => {
     if (status) {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
-    
-    if (from !== undefined || to !== undefined) {
+
+    if (from || to) {
       const range = {};
 
-      if (from !== undefined) {
-        const fromNum = Number(from);
-        if (!Number.isNaN(fromNum)) {
-          range.$gte = new Date(fromNum);
-        } else {
-          // optional: handle invalid input
-          console.warn("'from' is not a valid number:", from);
+      if (from) {
+        const fromMs = Number(from);
+        if (!Number.isNaN(fromMs)) {
+          const fromDate = new Date(fromMs);
+          fromDate.setMinutes(fromDate.getMinutes() - fromDate.getTimezoneOffset());
+          range.$gte = fromDate;
         }
       }
 
-      if (to !== undefined) {
-        const toNum = Number(to);
-        if (!Number.isNaN(toNum)) {
-          range.$lte = new Date(toNum);
-        } else {
-          console.warn("'to' is not a valid number:", to);
+      if (to) {
+        const toMs = Number(to);
+        if (!Number.isNaN(toMs)) {
+          const toDate = new Date(toMs);
+          toDate.setMinutes(toDate.getMinutes() - toDate.getTimezoneOffset());
+          range.$lte = toDate;
         }
       }
+
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
       }
-      console.log("range", range);
+
+      console.log("Date range filter:", range);
     }
 
     if (brandName) {
