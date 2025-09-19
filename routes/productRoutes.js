@@ -24,10 +24,7 @@ router.get('/', async (req, res) => {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
 
-    const fromDate = new Date(Number(from)); // or parse from ISO string
-    const toDate = new Date(Number(to));   // etc.
-
-    filter.created_at = { $gte: fromDate, $lte: toDate }
+    filter.created_at = { $gte: from, $lte: to }
 
 
     if (brandName) {
