@@ -29,10 +29,10 @@ router.get('/', async (req, res) => {
     if (from || to) {
       const range = {};
       // if (from && !Number.isNaN(Number(from))) {
-      range.$gte = new Date(from).now();
+      range.$gte = new Date(from);
       // }
       // if (to && !Number.isNaN(Number(to))) {
-      range.$lte = new Date(to).now();
+      range.$lte = new Date(to);
       // }
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
