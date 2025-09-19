@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
 const User = require('../models/User');
+const moment = require('moment');
 
 // GET /api/products
 router.get('/', async (req, res) => {
@@ -24,7 +25,21 @@ router.get('/', async (req, res) => {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
 
-    filter.created_at = { $gte: from, $lte: to }
+    // Date range filtering (from/to in milliseconds)
+    if (from || to) {
+      const range = {};
+      if (from && !Number.isNaN(Number(from))) {
+        range.$gte = from;
+      }
+      if (to && !Number.isNaN(Number(to))) {
+        range.$lte = to;
+      }
+      if (Object.keys(range).length > 0) {
+        filter.created_at = range;
+      }
+    }
+
+    console.log("range", range);
 
 
     if (brandName) {
@@ -108,8 +123,8 @@ router.post('/', async (req, res) => {
       supplier,
       qc_remark,
       status: finalStatusForNew,
-      created_at: Date.now(),
-      update_at: Date.now()
+      created_at: moment().valueOf(),
+      updated_at: moment().valueOf()
     });
 
     await product.save();
