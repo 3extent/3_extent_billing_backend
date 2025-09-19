@@ -24,23 +24,33 @@ router.get('/', async (req, res) => {
     if (status) {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
-
-    // Date range filtering (from/to in milliseconds)
-    if (from || to) {
+    
+    if (from !== undefined || to !== undefined) {
       const range = {};
-      // if (from && !Number.isNaN(Number(from))) {
-      range.$gte = new Date(from);
-      // }
-      // if (to && !Number.isNaN(Number(to))) {
-      range.$lte = new Date(to);
-      // }
+
+      if (from !== undefined) {
+        const fromNum = Number(from);
+        if (!Number.isNaN(fromNum)) {
+          range.$gte = new Date(fromNum);
+        } else {
+          // optional: handle invalid input
+          console.warn("'from' is not a valid number:", from);
+        }
+      }
+
+      if (to !== undefined) {
+        const toNum = Number(to);
+        if (!Number.isNaN(toNum)) {
+          range.$lte = new Date(toNum);
+        } else {
+          console.warn("'to' is not a valid number:", to);
+        }
+      }
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
       }
       console.log("range", range);
     }
-
-
 
     if (brandName) {
       const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
