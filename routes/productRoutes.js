@@ -37,9 +37,9 @@ router.get('/', async (req, res) => {
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
       }
+      console.log("range", range);
     }
 
-    console.log("range", range);
 
 
     if (brandName) {
@@ -122,9 +122,7 @@ router.post('/', async (req, res) => {
       accessories,
       supplier,
       qc_remark,
-      status: finalStatusForNew,
-      created_at: moment().valueOf(),
-      updated_at: moment().valueOf()
+      status: finalStatusForNew
     });
 
     await product.save();
