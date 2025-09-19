@@ -25,19 +25,10 @@ router.get('/', async (req, res) => {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
 
-    // Date range filtering (from/to in milliseconds)
-    if (from || to) {
-      const range = {};
-      // if (from && !Number.isNaN(Number(from))) {
-      range.$gte = from;
-      // }
-      // if (to && !Number.isNaN(Number(to))) {
-      range.$lte = to;
-      // }
-      if (Object.keys(range).length > 0) {
-        filter.created_at = range;
-      }
-    }
+    const fromDate = new Date(Number(from)); // or parse from ISO string
+    const toDate = new Date(Number(to));   // etc.
+
+    filter.created_at = { $gte: fromDate, $lte: toDate }
 
 
     if (brandName) {
