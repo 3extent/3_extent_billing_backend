@@ -114,15 +114,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'IMEI already exists with AVAILABLE status' });
     }
 
-    const hasSoldExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'SOLD');
-    if (hasSoldExisting) {
-      await Product.updateMany(
-        { imei_number, status: { $regex: '^SOLD$', $options: 'i' } },
-        { status: 'RETURN' }
-      );
-    }
-
-    const finalStatusForNew = hasSoldExisting ? 'AVAILABLE' : status;
+    const finalStatusForNew = status.toUpperCase() !== "RETURN" ? 'AVAILABLE' : status.toUpperCase();
 
     // Create new product
     const product = new Product({
