@@ -21,9 +21,11 @@ router.get('/', async (req, res) => {
       filter.grade = { $regex: grade, $options: 'i' }; // partial, case-insensitive match
     }
 
-    if (status && status.length !== 0) {
-      // Multiple statuses - use $in operator for exact matching
-      filter.status = { $in: status };
+    if (status) {
+      // Handle both single status and status array
+      // If status is a string, convert to array; if already array, use as-is
+      const statusArray = Array.isArray(status) ? status : [status];
+      filter.status = { $in: statusArray };
     }
 
     if (from || to) {

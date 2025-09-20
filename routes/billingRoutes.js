@@ -119,7 +119,6 @@ router.post('/', async (req, res) => {
         error: 'Customer name, contact number, payable_amount, paid_amount and products array are required'
       });
     }
-    
     // Check if customer already exists based on contact number
     let existingCustomer = await User.findOne({ contact_number: contact_number });
 
