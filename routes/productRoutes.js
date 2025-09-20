@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
     if (status) {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
+    console.log("from, to :", from, to);
 
     if (from || to) {
       const range = {};
@@ -42,6 +43,7 @@ router.get('/', async (req, res) => {
         if (!Number.isNaN(toMs)) {
           const toDate = new Date(toMs);
           toDate.setMinutes(toDate.getMinutes() - toDate.getTimezoneOffset());
+          toDate.setHours(23, 59, 59, 999);
           range.$lte = toDate;
         }
       }
