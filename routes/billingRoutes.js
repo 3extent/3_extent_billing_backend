@@ -121,8 +121,6 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Check if customer already exists based on contact number
-    let existingCustomer = await User.findOne({ contact_number: contact_number });
 
     let customerId;
     if (existingCustomer) {
@@ -195,18 +193,21 @@ router.post('/', async (req, res) => {
 
     await billing.save();
 
-    // Update all products status to 'sold'
-    // Update all products status to 'sold'
-    for (const product of updatedProducts) {
-      product.status = 'SOLD';
+    // Update all products status to 'SOLD', if billing status is not DRAFTED
+    // Keep all products status to 'AVAILABLE'/ 'RETURN', if billing status is DRAFTED
 
-      // Find the corresponding final_rate from foundProducts
-      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
-      if (foundProduct) {
-        product.final_rate = foundProduct.final_rate;
+    if (status !== "DRAFTED") {
+      for (const product of updatedProducts) {
+        product.status = 'SOLD';
+
+        // Find the corresponding final_rate from foundProducts
+        const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+        if (foundProduct) {
+          product.final_rate = foundProduct.final_rate;
+        }
+
+        await product.save();
       }
-
-      await product.save();
     }
 
     // Populate the billing record with customer and product details
