@@ -4,6 +4,7 @@ const Billing = require('../models/Billing');
 const User = require('../models/User');
 const Product = require('../models/Product');
 
+
 // GET /api/billings
 router.get('/', async (req, res) => {
   try {
@@ -35,8 +36,31 @@ router.get('/', async (req, res) => {
       filter.status = { $regex: status, $options: 'i' };
     }
 
-    const fromDate = new Date(Number(from)); // or parse from ISO string
-    const toDate = new Date(Number(to));   // etc.
+    if (from || to) {
+      const range = {};
+
+      if (from) {
+        const fromMs = Number(from);
+        if (!Number.isNaN(fromMs)) {
+          const fromDate = fromMs;
+          range.$gte = fromDate;
+        }
+      }
+
+      if (to) {
+        const toMs = Number(to);
+        if (!Number.isNaN(toMs)) {
+          const toDate = toMs;
+          range.$lte = toDate;
+        }
+      }
+
+      if (Object.keys(range).length > 0) {
+        filter.created_at = range;
+      }
+
+      console.log("Date range filter:", range);
+    }
 
     filter.created_at = { $gte: fromDate, $lte: toDate }
     console.log("filter", filter);
