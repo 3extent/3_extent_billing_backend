@@ -33,7 +33,6 @@ router.get('/', async (req, res) => {
         const fromMs = Number(from);
         if (!Number.isNaN(fromMs)) {
           const fromDate = new Date(fromMs);
-          fromDate.setMinutes(fromDate.getMinutes() - fromDate.getTimezoneOffset());
           range.$gte = fromDate;
         }
       }
@@ -42,8 +41,6 @@ router.get('/', async (req, res) => {
         const toMs = Number(to);
         if (!Number.isNaN(toMs)) {
           const toDate = new Date(toMs);
-          toDate.setMinutes(toDate.getMinutes() - toDate.getTimezoneOffset());
-          toDate.setHours(23, 59, 59, 999);
           range.$lte = toDate;
         }
       }
@@ -169,7 +166,7 @@ router.put('/:id', async (req, res) => {
     product.supplier = supplier;
     product.qc_remark = qc_remark;
     product.status = status;
-    product.updated_at = Date.now();
+    product.updated_at = moment().valueOf();
     await product.save();
     res.json(product);
   } catch (err) {
