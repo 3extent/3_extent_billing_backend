@@ -32,7 +32,7 @@ router.get('/', async (req, res) => {
       if (from) {
         const fromMs = Number(from);
         if (!Number.isNaN(fromMs)) {
-          const fromDate = new Date(fromMs);
+          const fromDate = fromMs;
           range.$gte = fromDate;
         }
       }
@@ -40,7 +40,7 @@ router.get('/', async (req, res) => {
       if (to) {
         const toMs = Number(to);
         if (!Number.isNaN(toMs)) {
-          const toDate = new Date(toMs);
+          const toDate = toMs;
           range.$lte = toDate;
         }
       }
