@@ -24,8 +24,7 @@ router.get('/', async (req, res) => {
     if (status) {
       filter.status = { $regex: status, $options: 'i' }; // partial, case-insensitive match
     }
-    console.log("from, to :", from, to);
-
+ 
     if (from || to) {
       const range = {};
 
