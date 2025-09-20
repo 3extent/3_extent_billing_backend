@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
 
     if (status && status.length !== 0) {
       // Multiple statuses - use $in operator for exact matching
-      filter.status = { $in: statusArray };
+      filter.status = { $in: status };
     }
 
     if (from || to) {
