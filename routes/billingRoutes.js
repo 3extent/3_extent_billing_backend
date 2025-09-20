@@ -62,7 +62,6 @@ router.get('/', async (req, res) => {
       console.log("Date range filter:", range);
     }
 
-    filter.created_at = { $gte: fromDate, $lte: toDate }
     console.log("filter", filter);
 
 
