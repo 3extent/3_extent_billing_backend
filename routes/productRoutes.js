@@ -25,7 +25,7 @@ async function validateModelAndSupplier(model_name, supplier_name) {
 async function validateImeiAndHandleExisting(imei_number, status) {
   const existingWithSameImei = await Product.find({ imei_number }).select('status imei_number');
   const hasAvailableExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'AVAILABLE');
-  
+
   if (hasAvailableExisting) {
     throw new Error('IMEI already exists with AVAILABLE status');
   }
@@ -164,8 +164,8 @@ router.post('/', async (req, res) => {
 // POST /api/products/bulk - Create multiple products
 router.post('/bulk', async (req, res) => {
   try {
-    const { products } = req.body;
-    
+    const products = req.body;
+
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ error: 'Products array is required and must not be empty' });
     }
@@ -193,8 +193,8 @@ router.post('/bulk', async (req, res) => {
     }
 
     // Return results with status based on success/failure
-    const statusCode = results.failed.length === 0 ? 200 : 
-                      results.successful.length === 0 ? 400 : 207; // 207 = Multi-Status
+    const statusCode = results.failed.length === 0 ? 200 :
+      results.successful.length === 0 ? 400 : 207; // 207 = Multi-Status
 
     res.status(statusCode).json({
       message: `Processed ${products.length} products. ${results.successful.length} successful, ${results.failed.length} failed.`,
