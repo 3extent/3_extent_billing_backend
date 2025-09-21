@@ -38,9 +38,10 @@ async function validateImeiAndHandleExisting(imei_number, status) {
       { status: 'RETURN', updated_at: moment().valueOf() }
     );
   }
-
-  const finalStatusForNew = status.toUpperCase() !== "RETURN" ? 'AVAILABLE' : status.toUpperCase();
-  return finalStatusForNew;
+  if (status) {
+    const finalStatusForNew = status.toUpperCase() !== "RETURN" ? 'AVAILABLE' : status.toUpperCase();
+    return finalStatusForNew;
+  }
 }
 
 // Helper function to create a single product
