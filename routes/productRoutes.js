@@ -6,6 +6,71 @@ const Model = require('../models/Model');
 const User = require('../models/User');
 const moment = require('moment');
 
+// Helper function to validate and find model and supplier
+async function validateModelAndSupplier(model_name, supplier_name) {
+  const model = await Model.findOne({ name: model_name });
+  if (!model) {
+    throw new Error('Model not found');
+  }
+
+  const supplier = await User.findOne({ name: supplier_name });
+  if (!supplier) {
+    throw new Error('Supplier not found');
+  }
+
+  return { model, supplier };
+}
+
+// Helper function to validate IMEI and handle existing products
+async function validateImeiAndHandleExisting(imei_number, status) {
+  const existingWithSameImei = await Product.find({ imei_number }).select('status imei_number');
+  const hasAvailableExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'AVAILABLE');
+  
+  if (hasAvailableExisting) {
+    throw new Error('IMEI already exists with AVAILABLE status');
+  }
+
+  // If there are existing products with SOLD status, mark them as RETURN
+  const soldProducts = existingWithSameImei.filter(p => (p.status || '').toUpperCase() === 'SOLD');
+  if (soldProducts.length > 0) {
+    await Product.updateMany(
+      { _id: { $in: soldProducts.map(p => p._id) } },
+      { status: 'RETURN', updated_at: moment().valueOf() }
+    );
+  }
+
+  const finalStatusForNew = status.toUpperCase() !== "RETURN" ? 'AVAILABLE' : status.toUpperCase();
+  return finalStatusForNew;
+}
+
+// Helper function to create a single product
+async function createSingleProduct(productData) {
+  const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
+
+  // Validate model and supplier
+  const { model, supplier } = await validateModelAndSupplier(model_name, supplier_name);
+
+  // Validate IMEI and handle existing products
+  const finalStatus = await validateImeiAndHandleExisting(imei_number, status);
+
+  // Create new product
+  const product = new Product({
+    model,
+    imei_number,
+    sales_price,
+    purchase_price,
+    grade,
+    engineer_name,
+    accessories,
+    supplier,
+    qc_remark,
+    status: finalStatus
+  });
+
+  await product.save();
+  return product;
+}
+
 // GET /api/products
 router.get('/', async (req, res) => {
   try {
@@ -89,48 +154,53 @@ router.get('/', async (req, res) => {
 // POST /api/products/ - Create single product
 router.post('/', async (req, res) => {
   try {
-    const productData = req.body;
-    const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
+    const product = await createSingleProduct(req.body);
+    res.json(product);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
-    // Find the model by name
-    const model = await Model.findOne({ name: model_name });
-    if (!model) {
-      return res.status(400).json({ error: 'Model not found' });
+// POST /api/products/bulk - Create multiple products
+router.post('/bulk', async (req, res) => {
+  try {
+    const { products } = req.body;
+    
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: 'Products array is required and must not be empty' });
     }
 
-    // Find the supplier by name
-    const supplier = await User.findOne({ name: supplier_name });
-    if (!supplier) {
-      return res.status(400).json({ error: 'Supplier not found' });
+    const results = {
+      successful: [],
+      failed: []
+    };
+
+    // Process each product
+    for (let i = 0; i < products.length; i++) {
+      try {
+        const product = await createSingleProduct(products[i]);
+        results.successful.push({
+          index: i,
+          product: product
+        });
+      } catch (err) {
+        results.failed.push({
+          index: i,
+          productData: products[i],
+          error: err.message
+        });
+      }
     }
 
-    // IMEI rules:
-    // 1) If an existing product with same IMEI has AVAILABLE status -> reject
-    // 2) If an existing product with same IMEI has SOLD status -> mark existing as RETURN, new product becomes AVAILABLE
-    const existingWithSameImei = await Product.find({ imei_number }).select('status imei_number');
-    const hasAvailableExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'AVAILABLE');
-    if (hasAvailableExisting) {
-      return res.status(400).json({ error: 'IMEI already exists with AVAILABLE status' });
-    }
+    // Return results with status based on success/failure
+    const statusCode = results.failed.length === 0 ? 200 : 
+                      results.successful.length === 0 ? 400 : 207; // 207 = Multi-Status
 
-    const finalStatusForNew = status.toUpperCase() !== "RETURN" ? 'AVAILABLE' : status.toUpperCase();
-
-    // Create new product
-    const product = new Product({
-      model,
-      imei_number,
-      sales_price,
-      purchase_price,
-      grade,
-      engineer_name,
-      accessories,
-      supplier,
-      qc_remark,
-      status: finalStatusForNew
+    res.status(statusCode).json({
+      message: `Processed ${products.length} products. ${results.successful.length} successful, ${results.failed.length} failed.`,
+      results: results
     });
 
-    await product.save();
-    res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
