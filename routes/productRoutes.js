@@ -88,9 +88,7 @@ router.get('/', async (req, res) => {
     }
 
     if (status) {
-      // Handle both single status and status array
-      // If status is a string, convert to array; if already array, use as-is
-      const statusArray = Array.isArray(status) ? status : [status];
+      const statusArray = status.split(",")
       filter.status = { $in: statusArray };
     }
 
