@@ -24,7 +24,8 @@ const billingSchema = new mongoose.Schema({
   profit: { type: String, required: true },
   status: { type: String, required: true },
   created_at: { type: Number, default: moment.utc().valueOf() },
-  updated_at: { type: Number, default: moment.utc().valueOf() }
+  updated_at: { type: Number, default: moment.utc().valueOf() },
+  created_by: String
 });
 
 // Auto-increment bill_id before saving

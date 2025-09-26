@@ -13,7 +13,8 @@ const userSchema = new mongoose.Schema({
   pan_number: String,
   role: String,
   created_at: { type: Number, default: moment.utc().valueOf() },
-  updated_at: { type: Number, default: moment.utc().valueOf() }
+  updated_at: { type: Number, default: moment.utc().valueOf() },
+  created_by: String
 });
 
 module.exports = mongoose.model('User', userSchema);
