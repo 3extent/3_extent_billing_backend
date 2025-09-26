@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
+const moment = require('moment');
 
 // GET /models?modelName=Iphone&brandName=Samsung - get all models
 router.get('/', async (req, res) => {
@@ -74,8 +75,8 @@ router.post('/', async (req, res) => {
       const model = new Model({
         name: `${name} ${ram.ram}/${ram.storage}GB`,
         brand: brandId,
-        created_at: Date.now(),
-        updated_at: Date.now()
+        created_at: moment.utc().valueOf(),
+        updated_at: moment.utc().valueOf()
       });
       try {
         await model.save();
@@ -137,7 +138,7 @@ router.put('/:id', async (req, res) => {
       {
         name,
         brand: brandId,
-        updated_at: Date.now()
+        updated_at: moment.utc().valueOf()
       },
       { new: true }
     ).populate('brand');

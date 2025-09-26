@@ -3,7 +3,7 @@ const router = express.Router();
 const Billing = require('../models/Billing');
 const User = require('../models/User');
 const Product = require('../models/Product');
-
+const moment = require('moment');
 
 // GET /api/billings
 router.get('/', async (req, res) => {
@@ -134,7 +134,7 @@ router.post('/', async (req, res) => {
         name: customer_name,
         contact_number: contact_number,
         role: 'customer',
-        created_at: Date.now()
+        created_at: moment.utc().valueOf()
       });
 
       await newCustomer.save();
@@ -188,8 +188,8 @@ router.post('/', async (req, res) => {
       paid_amount,
       status: billStatus,
       profit: profit.toString(),
-      created_at: Date.now(),
-      update_at: Date.now()
+      created_at: moment.utc().valueOf(),
+      update_at: moment.utc().valueOf()
     });
 
     await billing.save();
@@ -205,6 +205,7 @@ router.post('/', async (req, res) => {
         const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
         if (foundProduct) {
           product.purchased_at_price = foundProduct.final_rate;
+          product.updated_at = moment.utc().valueOf();
         }
 
         await product.save();

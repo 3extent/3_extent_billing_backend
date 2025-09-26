@@ -35,7 +35,7 @@ async function validateImeiAndHandleExisting(imei_number, status) {
   if (soldProducts.length > 0) {
     await Product.updateMany(
       { _id: { $in: soldProducts.map(p => p._id) } },
-      { status: 'RETURN', updated_at: moment().valueOf() }
+      { status: 'RETURN', updated_at: moment.utc().valueOf() }
     );
   }
   if (status) {
@@ -237,7 +237,7 @@ router.put('/:id', async (req, res) => {
     product.supplier = supplier;
     product.qc_remark = qc_remark;
     product.status = status;
-    product.updated_at = moment().valueOf();
+    product.updated_at = moment.utc().valueOf();
     await product.save();
     res.json(product);
   } catch (err) {

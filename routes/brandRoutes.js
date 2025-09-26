@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Brand = require('../models/Brand');
+const moment = require('moment');
 
 // GET /api/brands?name="Samsung" - get all brands
 router.get('/', async (req, res) => {
@@ -32,8 +33,8 @@ router.post('/', async (req, res) => {
 
     const brand = new Brand({
       name,
-      created_at: Date.now(),
-      updated_at: Date.now()
+      created_at: moment.utc().valueOf(),
+      updated_at: moment.utc().valueOf()
     });
     await brand.save();
     res.json(brand);
@@ -63,7 +64,7 @@ router.put('/:id', async (req, res) => {
     const brand = await Brand.findByIdAndUpdate(req.params.id,
       {
         name,
-        updated_at: Date.now()
+        updated_at: moment.utc().valueOf()
       },
       { new: true });
     if (!brand) {
