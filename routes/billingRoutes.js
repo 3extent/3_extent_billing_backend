@@ -204,7 +204,7 @@ router.post('/', async (req, res) => {
         // Find the corresponding final_rate from foundProducts
         const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
         if (foundProduct) {
-          product.final_rate = foundProduct.final_rate;
+          product.purchased_at_price = foundProduct.final_rate;
         }
 
         await product.save();
