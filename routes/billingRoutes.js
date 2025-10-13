@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
 
     // Status filter
     if (status) {
-      filter.status = { $regex: status, $options: 'i' };
+      filter.status = status;
     }
 
     if (from || to) {
