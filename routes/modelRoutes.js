@@ -90,9 +90,6 @@ router.post('/', async (req, res) => {
       }
     }
 
-    if (ramStorageList.length === 1 && skipped.length === 0) {
-      return res.status(400).json({ error: 'Model already exists' });
-    }
 
     return res.status(201).json({
       createdCount: created.length,
