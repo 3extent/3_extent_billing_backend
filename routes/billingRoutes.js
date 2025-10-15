@@ -177,7 +177,7 @@ router.post('/', async (req, res) => {
     const profit = payable_amount - totalCost;
 
     let billStatus = status;
-    if (pending_amount > 0) {
+    if (pending_amount > 0 && billStatus !== "DRAFTED") {
       if (pending_amount !== payable_amount) {
         billStatus = "PARTIALLY_PAID"
       } else {
