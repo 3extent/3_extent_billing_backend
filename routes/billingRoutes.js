@@ -183,7 +183,7 @@ router.post('/', async (req, res) => {
       } else {
         billStatus = "UNPAID"
       }
-    } else {
+    } else if (pending_amount === 0) {
       billStatus = "PAID"
     }
 
@@ -205,7 +205,7 @@ router.post('/', async (req, res) => {
     // Update all products status to 'SOLD', if billing status is not DRAFTED
     // Keep all products status to 'AVAILABLE'/ 'RETURN', if billing status is DRAFTED
 
-    if (status !== "DRAFTED") {
+    if (billStatus !== "DRAFTED") {
       for (const product of updatedProducts) {
         product.status = 'SOLD';
 
