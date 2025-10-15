@@ -8,7 +8,7 @@ const moment = require('moment');
 // GET /api/billings
 router.get('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, status, from, to } = req.query;
+    const { customer_name, contact_number, imei_number, status, from, to } = req.query;
 
     const filter = {};
 
@@ -35,6 +35,14 @@ router.get('/', async (req, res) => {
     if (status) {
       filter.status = status;
     }
+
+    const productFromDB = await Product.findOne({ imei_number })
+    console.log("productFromDB", productFromDB)
+    if (imei_number) {
+      filter.products = productFromDB._id;
+    }
+    console.log("filter", filter)
+
 
     if (from || to) {
       const range = {};
@@ -234,6 +242,51 @@ router.post('/', async (req, res) => {
         isNewCustomer: !existingCustomer
       }
     });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// PUT /api/billing
+router.put('/:id', async (req, res) => {
+  try {
+    const { payable_amount, paid_amount, status } = req.body;
+
+    // Validate required fields
+    if (!payable_amount || !paid_amount) {
+      return res.status(400).json({
+        error: 'payable_amount, paid_amount are required'
+      });
+    }
+
+    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
+    const profit = payable_amount - totalCost;
+
+    let billStatus = status;
+    if (pending_amount > 0) {
+      if (pending_amount !== payable_amount) {
+        billStatus = "PARTIALLY_PAID"
+      } else {
+        billStatus = "UNPAID"
+      }
+    } else {
+      billStatus = "PAID"
+    }
+
+    const billing = await Billing.findByIdAndUpdate(req.params.id, {
+      payable_amount,
+      pending_amount: pending_amount,
+      paid_amount,
+      status: billStatus,
+      profit: profit.toString(),
+      update_at: moment.utc().valueOf()
+    }, { new: true });
+
+
+    res.json(billing);
 
   } catch (err) {
     res.status(500).json({ error: err.message });
