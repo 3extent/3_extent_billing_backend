@@ -262,8 +262,6 @@ router.put('/:id', async (req, res) => {
     }
 
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
-    const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
-    const profit = payable_amount - totalCost;
 
     let billStatus = status;
     if (pending_amount > 0) {
@@ -281,7 +279,6 @@ router.put('/:id', async (req, res) => {
       pending_amount: pending_amount,
       paid_amount,
       status: billStatus,
-      profit: profit.toString(),
       update_at: moment.utc().valueOf()
     }, { new: true });
 
