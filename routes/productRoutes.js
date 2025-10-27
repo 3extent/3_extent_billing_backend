@@ -7,10 +7,18 @@ const User = require('../models/User');
 const moment = require('moment');
 
 // Helper function to validate and find model and supplier
-async function validateModelAndSupplier(model_name, supplier_name) {
-  const model = await Model.findOne({ name: model_name });
+async function validateModelAndSupplier(model_name, supplier_name, brand) {
+  let model = await Model.findOne({ name: model_name, brand: brand._id });
+
   if (!model) {
-    throw new Error('Model not found');
+    // Create model if it doesn't exist
+    model = new Model({
+      name: model_name,
+      brand: brand._id,
+      created_at: moment.utc().valueOf(),
+      updated_at: moment.utc().valueOf()
+    });
+    await model.save();
   }
 
   const supplier = await User.findOne({ name: supplier_name });
@@ -44,10 +52,18 @@ async function validateImeiAndHandleExisting(imei_number, status) {
 
 // Helper function to create a single product
 async function createSingleProduct(productData) {
-  const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
+  const { brand_name, model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
 
-  // Validate model and supplier
-  const { model, supplier } = await validateModelAndSupplier(model_name, supplier_name);
+
+  //validate brand
+  const brand = await Brand.findOne({ name: brand_name });
+
+  if (!brand) {
+    throw new Error("Brand not Found");
+  }
+
+  // Validate model and supplier and add model if not there
+  const { model, supplier } = await validateModelAndSupplier(model_name, supplier_name, brand);
 
   // Validate IMEI and handle existing products
   const finalStatus = await validateImeiAndHandleExisting(imei_number, status);
