@@ -54,7 +54,6 @@ async function validateImeiAndHandleExisting(imei_number, status) {
 async function createSingleProduct(productData) {
   const { brand_name, model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
 
-
   //validate brand
   const brand = await Brand.findOne({ name: brand_name });
 
@@ -70,6 +69,7 @@ async function createSingleProduct(productData) {
 
   // Create new product
   const product = new Product({
+    brand,
     model,
     imei_number,
     sales_price,
