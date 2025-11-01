@@ -137,17 +137,9 @@ router.post('/', async (req, res) => {
       customerId = existingCustomer._id;
       console.log(`Using existing customer: ${existingCustomer.name} (${existingCustomer.contact_number})`);
     } else {
-      // Create new customer
-      const newCustomer = new User({
-        name: customer_name,
-        contact_number: contact_number,
-        role: 'customer',
-        created_at: moment.utc().valueOf()
+      return res.status(400).json({
+        error: `Customer not found`
       });
-
-      await newCustomer.save();
-      customerId = newCustomer._id;
-      console.log(`Created new customer: ${newCustomer.name} (${newCustomer.contact_number})`);
     }
 
     // Validate products and update their status to 'sold'
