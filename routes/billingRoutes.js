@@ -160,7 +160,7 @@ router.post('/', async (req, res) => {
         });
       }
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: singleProduct.purchase_price });
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price });
       updatedProducts.push(product);
     }
 
