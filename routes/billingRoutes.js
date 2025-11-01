@@ -160,13 +160,14 @@ router.post('/', async (req, res) => {
         });
       }
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate });
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: singleProduct.purchase_price });
       updatedProducts.push(product);
     }
 
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
-    const profit = payable_amount - totalCost;
+    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
+    const profit = totalCost - totalPurchasePrice;
 
     let billStatus = status;
     if (pending_amount > 0 && billStatus !== "DRAFTED") {
