@@ -90,7 +90,7 @@ async function createSingleProduct(productData) {
 router.get('/', async (req, res) => {
   try {
     console.log(req.query);
-    const { imei_number, grade, brandName, modelName, status, from, to } = req.query;
+    const { imei_number, grade, brandName, modelName, status, supplierName, from, to } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -152,6 +152,15 @@ router.get('/', async (req, res) => {
         filter.model = null;
       } else {
         filter.model = modelFromDb._id;
+      }
+    }
+
+    if (supplierName) {
+      const supplierFromDb = await User.findOne({ name: { $regex: supplierName, $options: 'i' }, role: "SUPPLIER" })
+      if (!supplierFromDb) {
+        filter.supplier = null
+      } else {
+        filter.supplier = supplierFromDb._id
       }
     }
 
