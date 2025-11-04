@@ -21,7 +21,7 @@ let isConnected = false;
 async function connectToDB() {
   if (isConnected) return;
   try {
-    await mongoose.connect("mongodb+srv://codadhyay:CGcBiKoQaJuNXpzY@3extentbilling.n6udcps.mongodb.net/3_extent_billing", {
+    await mongoose.connect(process.env.DEV_MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
       connectTimeoutMS: 30000,       // Increase connection timeout to 30 seconds
