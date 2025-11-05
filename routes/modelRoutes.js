@@ -66,9 +66,12 @@ router.post('/', async (req, res) => {
       console.log("ram", ram)
       let modelName = `${name} ${ram.ram}/${ram.storage}GB`;
       if (!ram.ram.trim() && ram.storage) {
-      console.log("ram", ram)
+        console.log("ram", ram)
         modelName = `${name} ${ram.storage}GB`;
       }
+
+      console.log("modelName", modelName)
+
       const exists = await Model.findOne({
         name: modelName,
         brand: brandId,
@@ -79,7 +82,7 @@ router.post('/', async (req, res) => {
       }
 
       const model = new Model({
-        name: `${name} ${ram.ram}/${ram.storage}GB`,
+        name: modelName,
         brand: brandId,
         created_at: moment.utc().valueOf(),
         updated_at: moment.utc().valueOf()
