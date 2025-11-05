@@ -63,12 +63,12 @@ router.post('/', async (req, res) => {
     const skipped = [];
 
     for (const ram of ramStorageList) {
-      let name = `${name} ${ram.ram}/${ram.storage}GB`;
+      let modelName = `${name} ${ram.ram}/${ram.storage}GB`;
       if (ram.ram && !ram.storage) {
         name = `${name} ${ram.storage}GB`;
       }
       const exists = await Model.findOne({
-        name,
+        name: modelName,
         brand: brandId,
       });
       if (exists) {
