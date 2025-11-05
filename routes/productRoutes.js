@@ -38,14 +38,6 @@ async function validateImeiAndHandleExisting(imei_number, status) {
     throw new Error('IMEI already exists with AVAILABLE status');
   }
 
-  // // If there are existing products with SOLD status, mark them as RETURN
-  // const soldProducts = existingWithSameImei.filter(p => (p.status || '').toUpperCase() === 'SOLD');
-  // if (soldProducts.length > 0) {
-  //   await Product.updateMany(
-  //     { _id: { $in: soldProducts.map(p => p._id) } },
-  //     { status: 'RETURN', updated_at: moment.utc().valueOf() }
-  //   );
-  // }
   const finalStatusForNew = status && status.toUpperCase() === "RETURN" ? status.toUpperCase() : 'AVAILABLE';
   return finalStatusForNew;
 }
