@@ -63,6 +63,7 @@ router.post('/', async (req, res) => {
     const skipped = [];
 
     for (const ram of ramStorageList) {
+      console.log("ram", ram)
       let modelName = `${name} ${ram.ram}/${ram.storage}GB`;
       if (!ram.ram && ram.storage) {
         modelName = `${name} ${ram.storage}GB`;
