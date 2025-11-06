@@ -164,7 +164,7 @@ router.get('/', async (req, res) => {
 
     console.log(filter);
 
-    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier');
+    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').sort({ created_at: -1 });;
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
