@@ -3,7 +3,7 @@ const moment = require('moment');
 
 const billingSchema = new mongoose.Schema({
   invoice_number: { type: Number, unique: true },
-  customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   payable_amount: { type: String, required: true },
   paid_amount: [

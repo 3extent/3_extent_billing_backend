@@ -187,6 +187,9 @@ router.post('/', async (req, res) => {
       billStatus = "PAID"
     }
 
+    console.log(customerId);
+    
+
     // Create billing record
     const billing = new Billing({
       customer: customerId || null,
