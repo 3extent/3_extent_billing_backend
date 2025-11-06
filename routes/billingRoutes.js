@@ -124,8 +124,16 @@ router.post('/', async (req, res) => {
     // Validate required fields
     if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
       return res.status(400).json({
-        error: 'Customer name, contact number, payable_amount, paid_amount and products array are required'
+        error: 'payable_amount, paid_amount and products array are required'
       });
+    }
+    // Validate required fields
+    if (!customer_name || !contact_number) {
+      if (status !== "DRAFTED") {
+        return res.status(400).json({
+          error: 'Customer name, contact number are required'
+        });
+      }
     }
     // Check if customer already exists based on contact number
     let existingCustomer = await User.findOne({ contact_number: contact_number });
@@ -245,12 +253,12 @@ router.post('/', async (req, res) => {
 // PUT /api/billing
 router.put('/:id', async (req, res) => {
   try {
-    const { payable_amount, paid_amount, status } = req.body;
+    const { customer_name, contact_number, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!payable_amount || !paid_amount) {
+    if (!customer_name || !contact_number || !payable_amount || !paid_amount) {
       return res.status(400).json({
-        error: 'payable_amount, paid_amount are required'
+        error: 'customer_name, contact_number,payable_amount, paid_amount are required'
       });
     }
 
