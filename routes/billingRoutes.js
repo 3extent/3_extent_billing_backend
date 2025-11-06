@@ -189,7 +189,7 @@ router.post('/', async (req, res) => {
 
     // Create billing record
     const billing = new Billing({
-      customer: customerId,
+      customer: customerId || null,
       products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
       pending_amount: pending_amount,
