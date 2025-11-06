@@ -47,7 +47,7 @@ async function createSingleProduct(productData) {
   const { brand_name, model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
 
   //validate brand
-  const brand = await Brand.findOne({ name: brand_name });
+  let brand = await Brand.findOne({ name: brand_name });
 
   if (!brand) {
     // Create model if it doesn't exist
