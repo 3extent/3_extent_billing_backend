@@ -122,7 +122,7 @@ router.post('/', async (req, res) => {
     const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
+    if (!products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
       return res.status(400).json({
         error: 'payable_amount, paid_amount and products array are required'
       });
