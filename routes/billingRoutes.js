@@ -119,10 +119,10 @@ router.get('/:id', async (req, res) => {
 // POST /api/billing
 router.post('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, products, total_amount, paid_amount, status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !total_amount || !paid_amount) {
+    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
       return res.status(400).json({
         error: 'Customer name, contact number, payable_amount, paid_amount and products array are required'
       });
@@ -164,14 +164,14 @@ router.post('/', async (req, res) => {
       updatedProducts.push(product);
     }
 
-    const pending_amount = total_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
     const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
     const profit = totalCost - totalPurchasePrice;
 
     let billStatus = status;
     if (pending_amount > 0 && billStatus !== "DRAFTED") {
-      if (pending_amount !== total_amount) {
+      if (pending_amount !== payable_amount) {
         billStatus = "PARTIALLY_PAID"
       } else {
         billStatus = "UNPAID"
@@ -184,7 +184,7 @@ router.post('/', async (req, res) => {
     const billing = new Billing({
       customer: customerId,
       products: foundProducts.map((singleProduct) => singleProduct.productId),
-      total_amount,
+      payable_amount,
       pending_amount: pending_amount,
       paid_amount,
       status: billStatus,
@@ -245,22 +245,26 @@ router.post('/', async (req, res) => {
 // PUT /api/billing
 router.put('/:id', async (req, res) => {
   try {
-    const { paid_amount, status } = req.body;
+    const { payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!paid_amount) {
+    if (!payable_amount || !paid_amount) {
       return res.status(400).json({
-        error: 'paid_amount are required'
+        error: 'payable_amount, paid_amount are required'
       });
     }
 
     const bill = await Billing.findById(req.params.id)
+    console.log(bill);
+    console.log(paid_amount);
 
-    const pending_amount = bill.total_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+
+
+    const pending_amount = bill.pending_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
 
     let billStatus = status;
     if (pending_amount > 0) {
-      if (pending_amount !== bill.total_amount) {
+      if (pending_amount !== bill.payable_amount) {
         billStatus = "PARTIALLY_PAID"
       } else {
         billStatus = "UNPAID"
