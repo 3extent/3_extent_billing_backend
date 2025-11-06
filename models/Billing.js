@@ -5,6 +5,7 @@ const billingSchema = new mongoose.Schema({
   invoice_number: { type: Number, unique: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+  total_amount: { type: String, required: true },
   payable_amount: { type: String, required: true },
   paid_amount: [
     {
