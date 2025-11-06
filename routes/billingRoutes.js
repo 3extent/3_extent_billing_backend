@@ -140,7 +140,7 @@ router.post('/', async (req, res) => {
 
 
     let customerId;
-    if (existingCustomer) {
+    if (existingCustomer && status !== "DRAFTED") {
       // Customer exists, use existing customer ID
       customerId = existingCustomer._id;
       console.log(`Using existing customer: ${existingCustomer.name} (${existingCustomer.contact_number})`);
