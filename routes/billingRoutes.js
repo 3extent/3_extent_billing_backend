@@ -254,11 +254,17 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+    const bill = await Billing.findById(req.params.id)
+    console.log(bill);
+    console.log(paid_amount);
+
+
+
+    const pending_amount = bill.pending_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
 
     let billStatus = status;
     if (pending_amount > 0) {
-      if (pending_amount !== payable_amount) {
+      if (pending_amount !== bill.payable_amount) {
         billStatus = "PARTIALLY_PAID"
       } else {
         billStatus = "UNPAID"
@@ -268,7 +274,6 @@ router.put('/:id', async (req, res) => {
     }
 
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
-      payable_amount,
       pending_amount: pending_amount,
       paid_amount,
       status: billStatus,
