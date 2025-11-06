@@ -122,27 +122,20 @@ router.post('/', async (req, res) => {
     const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
+    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
       return res.status(400).json({
-        error: 'payable_amount, paid_amount and products array are required'
+        error: 'Customer name, contact number, payable_amount, paid_amount and products array are required'
       });
-    }
-    // Validate required fields
-    if (!customer_name || !contact_number) {
-      if (status !== "DRAFTED") {
-        return res.status(400).json({
-          error: 'Customer name, contact number are required'
-        });
-      }
     }
     // Check if customer already exists based on contact number
     let existingCustomer = await User.findOne({ contact_number: contact_number });
 
 
     let customerId;
-    if (existingCustomer || status === "DRAFTED") {
+    if (existingCustomer) {
       // Customer exists, use existing customer ID
-      customerId = existingCustomer?._id;
+      customerId = existingCustomer._id;
+      console.log(`Using existing customer: ${existingCustomer.name} (${existingCustomer.contact_number})`);
     } else {
       return res.status(400).json({
         error: `Customer not found`
@@ -187,12 +180,9 @@ router.post('/', async (req, res) => {
       billStatus = "PAID"
     }
 
-    console.log(customerId);
-    
-
     // Create billing record
     const billing = new Billing({
-      customer: customerId || null,
+      customer: customerId,
       products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
       pending_amount: pending_amount,
@@ -255,12 +245,12 @@ router.post('/', async (req, res) => {
 // PUT /api/billing
 router.put('/:id', async (req, res) => {
   try {
-    const { customer_name, contact_number, payable_amount, paid_amount, status } = req.body;
+    const { payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!customer_name || !contact_number || !payable_amount || !paid_amount) {
+    if (!payable_amount || !paid_amount) {
       return res.status(400).json({
-        error: 'customer_name, contact_number,payable_amount, paid_amount are required'
+        error: 'payable_amount, paid_amount are required'
       });
     }
 
