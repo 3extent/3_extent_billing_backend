@@ -100,8 +100,12 @@ router.get('/', async (req, res) => {
     }
 
     if (status) {
-      const statusArray = status.split(",")
-      filter.status = { $in: statusArray };
+      const statusArray = status.split(",");
+      // Always exclude REMOVED regardless of status filter
+      filter.status = { $in: statusArray.filter(s => s !== "REMOVED"), $ne: "REMOVED" };
+    } else {
+      // If no status filter specified, still exclude REMOVED
+      filter.status = { $ne: "REMOVED" };
     }
 
     if (from || to) {
