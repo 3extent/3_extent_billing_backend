@@ -291,6 +291,9 @@ router.delete('/:id', async (req, res) => {
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
+    if ((product.status || '').toUpperCase() === 'SOLD') {
+      return res.status(400).json({ error: 'Cannot remove a product that has been SOLD' });
+    }
     product.status = 'REMOVED';
     product.updated_at = moment.utc().valueOf();
     await product.save();
