@@ -147,7 +147,14 @@ router.post('/', async (req, res) => {
     const updatedProducts = [];
 
     for (const singleProduct of products) {
-      const product = await Product.findOne({ imei_number: singleProduct.imei_number });
+      // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
+      // If multiple exist, this ensures we get the correct one
+      let product = await Product.findOne({ 
+        imei_number: singleProduct.imei_number,
+        status: { $in: ['AVAILABLE', 'RETURN'] } // Only find available products
+      });
+      
+      // If not found with AVAILABLE status, check if it exists with other status
       if (!product) {
         return res.status(400).json({
           error: `Product with IMEI ${singleProduct.imei_number} not found`
