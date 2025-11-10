@@ -21,7 +21,7 @@ async function validateModelAndSupplier(model_name, supplier_name, brand) {
     await model.save();
   }
 
-  const supplier = await User.findOne({ name: supplier_name });
+  const supplier = await User.findOne({ name: supplier_name, role: "SUPPLIER" });
   if (!supplier) {
     throw new Error('Supplier not found');
   }
