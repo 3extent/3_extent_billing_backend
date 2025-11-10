@@ -85,7 +85,18 @@ router.get('/', async (req, res) => {
       })
       .sort({ created_at: -1 });
 
-    res.json(billings);
+    // Compute profit for each billing and total
+    // Then use reduce to compute total profit
+    const totalProfit = billings.reduce(
+      (sum, billing) => sum + (billing.profit ?? 0),
+      0
+    );
+
+    // Return both the list and total profit
+    res.json({
+      billings,
+      totalProfit
+    });
 
   } catch (err) {
     console.error('Error in GET /api/billings:', err);
@@ -149,11 +160,11 @@ router.post('/', async (req, res) => {
     for (const singleProduct of products) {
       // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
       // If multiple exist, this ensures we get the correct one
-      let product = await Product.findOne({ 
+      let product = await Product.findOne({
         imei_number: singleProduct.imei_number,
         status: { $in: ['AVAILABLE', 'RETURN'] } // Only find available products
       });
-      
+
       // If not found with AVAILABLE status, check if it exists with other status
       if (!product) {
         return res.status(400).json({
