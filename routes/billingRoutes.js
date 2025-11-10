@@ -88,7 +88,7 @@ router.get('/', async (req, res) => {
     // Compute profit for each billing and total
     // Then use reduce to compute total profit
     const totalProfit = billings.reduce(
-      (sum, billing) => sum + (billing.profit ?? 0),
+      (sum, billing) => sum + (parseInt(billing.profit) ?? 0),
       0
     );
 
