@@ -21,7 +21,7 @@ async function validateModelAndSupplier(model_name, supplier_name, brand) {
     await model.save();
   }
 
-  const supplier = await User.findOne({ name: supplier_name });
+  const supplier = await User.findOne({ name: supplier_name, role: "SUPPLIER" });
   if (!supplier) {
     throw new Error('Supplier not found');
   }
@@ -80,7 +80,7 @@ async function createSingleProduct(productData) {
     status: finalStatus
   });
 
-  await product.save();
+
   return product;
 }
 
@@ -179,6 +179,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const product = await createSingleProduct(req.body);
+    await product.save();
     res.json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -194,35 +195,25 @@ router.post('/bulk', async (req, res) => {
       return res.status(400).json({ error: 'Products array is required and must not be empty' });
     }
 
-    const results = {
-      successful: [],
-      failed: []
-    };
+    const submittedProducts = [];
 
-    // Process each product
+    // Validate/prepare each product (do NOT insert yet)
     for (let i = 0; i < products.length; i++) {
       try {
-        const product = await createSingleProduct(products[i]);
-        results.successful.push({
-          index: i,
-          product: product
-        });
+        const productDoc = await createSingleProduct(products[i], { save: false });
+        submittedProducts.push(productDoc);
       } catch (err) {
-        results.failed.push({
-          index: i,
-          productData: products[i],
-          error: err.message
-        });
+        // If any product fails → throw immediately → nothing should insert
+        throw new Error(`Product at index ${i} failed: ${err.message}`);
       }
     }
 
-    // Return results with status based on success/failure
-    const statusCode = results.failed.length === 0 ? 200 :
-      results.successful.length === 0 ? 400 : 207; // 207 = Multi-Status
 
-    res.status(statusCode).json({
-      message: `Processed ${products.length} products. ${results.successful.length} successful, ${results.failed.length} failed.`,
-      results: results
+    await Product.insertMany(submittedProducts, { ordered: false });
+
+    res.status(200).json({
+      message: `Successfully inserted ${submittedProducts.length} products.`,
+      products: submittedProducts
     });
 
   } catch (err) {
