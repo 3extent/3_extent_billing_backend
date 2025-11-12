@@ -87,15 +87,31 @@ router.get('/', async (req, res) => {
 
     // Compute profit for each billing and total
     // Then use reduce to compute total profit
+    const totalAmount = billings.reduce(
+      (sum, billing) => sum + (parseInt(billing.payable_amount) ?? 0),
+      0
+    );
+    const totalRemaining = billings.reduce(
+      (sum, billing) => sum + (parseInt(billing.pending_amount) ?? 0),
+      0
+    );
     const totalProfit = billings.reduce(
       (sum, billing) => sum + (parseInt(billing.profit) ?? 0),
+      0
+    );
+
+    const totalProducts = billings.reduce(
+      (sum, billing) => sum + (billing.products.length ?? 0),
       0
     );
 
     // Return both the list and total profit
     res.json({
       billings,
-      totalProfit
+      totalAmount,
+      totalRemaining,
+      totalProfit,
+      totalProducts
     });
 
   } catch (err) {
