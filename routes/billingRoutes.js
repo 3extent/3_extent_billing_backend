@@ -264,8 +264,8 @@ router.post('/', async (req, res) => {
       productsUpdated: updatedProducts.length,
       customerInfo: {
         id: customerId,
-        name: existingCustomer.name,
-        contact_number: existingCustomer.contact_number,
+        name: customer_name,
+        contact_number: contact_number,
         isNewCustomer: !existingCustomer
       }
     });
