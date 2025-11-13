@@ -146,7 +146,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/billing
 router.post('/', async (req, res) => {
   try {
-    const { products, payable_amount, paid_amount, status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
     if (!products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
