@@ -335,8 +335,6 @@ router.put('/:id', async (req, res) => {
       updatedProducts.push(product);
     }
     const pending_amount = bill.pending_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
-
-    //  const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
     const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
     const profit = totalCost - totalPurchasePrice;
@@ -408,7 +406,7 @@ router.put('/:id', async (req, res) => {
 });
 
 // PUT /api/billing/payment
-router.put('/:id', async (req, res) => {
+router.put('/payment/:id', async (req, res) => {
   try {
     const { payable_amount, paid_amount, status } = req.body;
 
