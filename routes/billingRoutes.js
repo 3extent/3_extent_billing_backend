@@ -282,15 +282,15 @@ router.put('/:id', async (req, res) => {
     const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
     // Validate required fields
-    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
+    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0) {
       return res.status(400).json({
-        error: 'Customer name, contact number, payable_amount, paid_amount and products array are required'
+        error: 'Customer name, contact number and products array are required'
       });
     }
 
     const bill = await Billing.findById(req.params.id)
     console.log(bill);
-    console.log(paid_amount);
+    // console.log(paid_amount);
     // Check if customer already exists based on contact number
     let existingCustomer = await User.findOne({ contact_number: contact_number });
 
