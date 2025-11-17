@@ -353,20 +353,20 @@ router.put('/:id', async (req, res) => {
     }, { new: true });
 
 
-    // if (status !== "DRAFTED") {
-    //   for (const product of updatedProducts) {
-    //     product.status = 'SOLD';
+    for (const product of updatedProducts) {
+      if (status !== "DRAFTED") {
 
-    //     // Find the corresponding final_rate from foundProducts
-    //     const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
-    //     if (foundProduct) {
-    //       product.sold_at_price = foundProduct.final_rate;
-    //       product.updated_at = moment.utc().valueOf();
-    //     }
+        product.status = 'SOLD';
+      }
+      // Find the corresponding final_rate from foundProducts
+      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      if (foundProduct) {
+        product.sold_at_price = foundProduct.final_rate;
+        product.updated_at = moment.utc().valueOf();
+      }
 
-    //     await product.save();
-    //   }
-    // }
+      await product.save();
+    }
 
 
     // Populate the billing record with customer and product details
