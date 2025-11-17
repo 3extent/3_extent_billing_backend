@@ -334,21 +334,12 @@ router.put('/:id', async (req, res) => {
       foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price });
       updatedProducts.push(product);
     }
-    const pending_amount = bill.pending_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+
+    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
     const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
     const profit = totalCost - totalPurchasePrice;
-
-    let billStatus = status;
-    if (pending_amount > 0 && billStatus !== "DRAFTED") {
-      if (pending_amount !== payable_amount) {
-        billStatus = "PARTIALLY_PAID"
-      } else {
-        billStatus = "UNPAID"
-      }
-    } else if (pending_amount === 0) {
-      billStatus = "PAID"
-    }
 
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
       customer: customerId,
@@ -356,26 +347,26 @@ router.put('/:id', async (req, res) => {
       payable_amount,
       pending_amount: pending_amount,
       paid_amount,
-      status: billStatus,
+      status,
       profit: profit.toString(),
       update_at: moment.utc().valueOf()
     }, { new: true });
 
 
-    if (billStatus !== "DRAFTED") {
-      for (const product of updatedProducts) {
-        product.status = 'SOLD';
+    // if (status !== "DRAFTED") {
+    //   for (const product of updatedProducts) {
+    //     product.status = 'SOLD';
 
-        // Find the corresponding final_rate from foundProducts
-        const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
-        if (foundProduct) {
-          product.sold_at_price = foundProduct.final_rate;
-          product.updated_at = moment.utc().valueOf();
-        }
+    //     // Find the corresponding final_rate from foundProducts
+    //     const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+    //     if (foundProduct) {
+    //       product.sold_at_price = foundProduct.final_rate;
+    //       product.updated_at = moment.utc().valueOf();
+    //     }
 
-        await product.save();
-      }
-    }
+    //     await product.save();
+    //   }
+    // }
 
 
     // Populate the billing record with customer and product details
