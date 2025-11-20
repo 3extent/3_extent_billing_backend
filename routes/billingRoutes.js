@@ -416,7 +416,14 @@ router.put('/payment/:id', async (req, res) => {
       });
     }
 
-    const bill = await Billing.findById(req.params.id)
+    const bill = await Billing.findById(req.params.id).populate('customer')
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
+      })
     console.log(bill);
     console.log(paid_amount);
 
@@ -431,6 +438,8 @@ router.put('/payment/:id', async (req, res) => {
       // Validate products and update their status to 'sold'
       const foundProducts = [];
       const updatedProducts = [];
+
+      console.log("bill", bill)
 
       for (const singleProduct of bill.products) {
         // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
