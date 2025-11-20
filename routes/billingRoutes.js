@@ -154,6 +154,14 @@ router.post('/', async (req, res) => {
         error: 'payable_amount, paid_amount and products array are required'
       });
     }
+
+    if (status !== "DRAFTED") {
+      if (!customer_name || !contact_number) {
+        return res.status(400).json({
+          error: 'customer_name and contact_number are required'
+        });
+      }
+    }
     // Check if customer already exists based on contact number
     let existingCustomer = await User.findOne({ contact_number: contact_number });
 
@@ -399,7 +407,7 @@ router.put('/:id', async (req, res) => {
 // PUT /api/billing/payment
 router.put('/payment/:id', async (req, res) => {
   try {
-    const { payable_amount, paid_amount, status } = req.body;
+    const { payable_amount, paid_amount } = req.body;
 
     // Validate required fields
     if (!payable_amount || !paid_amount) {
@@ -408,7 +416,14 @@ router.put('/payment/:id', async (req, res) => {
       });
     }
 
-    const bill = await Billing.findById(req.params.id)
+    const bill = await Billing.findById(req.params.id).populate('customer')
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
+      })
     console.log(bill);
     console.log(paid_amount);
 
@@ -416,7 +431,42 @@ router.put('/payment/:id', async (req, res) => {
 
     const pending_amount = bill.pending_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
 
-    let billStatus = status;
+    let billStatus = bill.status;
+
+    if (billStatus === "DRAFTED") {
+
+      // Validate products and update their status to 'sold'
+      const foundProducts = [];
+      const updatedProducts = [];
+
+      console.log("bill", bill)
+
+      for (const singleProduct of bill.products) {
+        // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
+        // If multiple exist, this ensures we get the correct one
+        let product = await Product.findOne({
+          imei_number: singleProduct.imei_number,
+          status: { $in: ['AVAILABLE', 'RETURN'] } // Only find available products
+        });
+
+        // If not found with AVAILABLE status, check if it exists with other status
+        if (!product) {
+          return res.status(400).json({
+            error: `Product with IMEI ${singleProduct.imei_number} not found`
+          });
+        }
+
+        if (product.status === 'SOLD') {
+          return res.status(400).json({
+            error: `Product with IMEI ${product.imei_number} is already sold`
+          });
+        }
+
+        foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price });
+        updatedProducts.push(product);
+      }
+    }
+
     if (pending_amount > 0) {
       if (pending_amount !== bill.payable_amount) {
         billStatus = "PARTIALLY_PAID"
@@ -426,6 +476,9 @@ router.put('/payment/:id', async (req, res) => {
     } else {
       billStatus = "PAID"
     }
+
+
+
 
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
       pending_amount: pending_amount,
