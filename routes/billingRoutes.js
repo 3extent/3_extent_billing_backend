@@ -483,8 +483,10 @@ router.put('/payment/:id', async (req, res) => {
 
       // Find the corresponding final_rate from foundProducts
       const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      console.log("foundProduct", foundProduct);
+
       if (foundProduct) {
-        product.sold_at_price = foundProduct.final_rate;
+        product.sold_at_price = foundProduct.sold_at_price;
         product.updated_at = moment.utc().valueOf();
       }
 
