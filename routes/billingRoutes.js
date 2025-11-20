@@ -240,20 +240,21 @@ router.post('/', async (req, res) => {
     // Update all products status to 'SOLD', if billing status is not DRAFTED
     // Keep all products status to 'AVAILABLE'/ 'RETURN', if billing status is DRAFTED
 
-    if (billStatus !== "DRAFTED") {
-      for (const product of updatedProducts) {
+
+    for (const product of updatedProducts) {
+      if (billStatus !== "DRAFTED") {
         product.status = 'SOLD';
-
-        // Find the corresponding final_rate from foundProducts
-        const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
-        if (foundProduct) {
-          product.sold_at_price = foundProduct.final_rate;
-          product.updated_at = moment.utc().valueOf();
-        }
-
-        await product.save();
       }
+      // Find the corresponding final_rate from foundProducts
+      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      if (foundProduct) {
+        product.sold_at_price = foundProduct.final_rate;
+        product.updated_at = moment.utc().valueOf();
+      }
+
+      await product.save();
     }
+
 
     // Populate the billing record with customer and product details
     const populatedBilling = await Billing.findById(billing._id)
