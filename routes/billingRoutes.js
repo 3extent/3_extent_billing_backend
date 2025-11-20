@@ -463,7 +463,7 @@ router.put('/payment/:id', async (req, res) => {
           });
         }
 
-        foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price });
+        foundProducts.push({ productId: product._id, final_rate: singleProduct.sold_at_price, purchase_price: product.purchase_price });
         updatedProducts.push(product);
       }
     }
@@ -486,7 +486,7 @@ router.put('/payment/:id', async (req, res) => {
       console.log("foundProduct", foundProduct);
 
       if (foundProduct) {
-        product.sold_at_price = foundProduct.sold_at_price;
+        product.sold_at_price = foundProduct.final_rate;
         product.updated_at = moment.utc().valueOf();
       }
 
