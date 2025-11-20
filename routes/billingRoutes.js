@@ -433,14 +433,14 @@ router.put('/payment/:id', async (req, res) => {
 
     let billStatus = bill.status;
 
+
+    // Validate products and update their status to 'sold'
+    const foundProducts = [];
+    const updatedProducts = [];
+
+    console.log("bill", bill)
+
     if (billStatus === "DRAFTED") {
-
-      // Validate products and update their status to 'sold'
-      const foundProducts = [];
-      const updatedProducts = [];
-
-      console.log("bill", bill)
-
       for (const singleProduct of bill.products) {
         // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
         // If multiple exist, this ensures we get the correct one
@@ -477,7 +477,18 @@ router.put('/payment/:id', async (req, res) => {
       billStatus = "PAID"
     }
 
+    for (const product of updatedProducts) {
+      product.status = 'SOLD';
 
+      // Find the corresponding final_rate from foundProducts
+      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      if (foundProduct) {
+        product.sold_at_price = foundProduct.final_rate;
+        product.updated_at = moment.utc().valueOf();
+      }
+
+      await product.save();
+    }
 
 
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
