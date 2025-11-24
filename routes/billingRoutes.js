@@ -123,7 +123,7 @@ router.get('/', async (req, res) => {
 // GET /api/billings/:id
 router.get('/:id', async (req, res) => {
   try {
-    let billing = await Billing.findById(req.params.id)
+    const billing = await Billing.findById(req.params.id)
       .populate('customer')
       .populate({
         path: 'products',
@@ -135,26 +135,26 @@ router.get('/:id', async (req, res) => {
 
     // Compute profit for each billing and total
     // Then use reduce to compute total profit
-    billing["totalSalesPrice"] = billing.products.reduce(
+    const totalSalesPrice = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.sales_price) ?? 0),
       0
     );
-    billing["totalRate"] = billing.products.reduce(
+    const totalRate = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.sold_at_price) ?? 0),
       0
     );
 
 
-    billing["totalPurchasePrice"] = billing.products.reduce(
+    const totalPurchasePrice = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.purchase_price) ?? 0),
       0
     );
-    billing["totalGSTPurchasePrice"] = billing.products.reduce(
+    const totalGSTPurchasePrice = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.gst_purchase_price) ?? 0),
       0
     );
 
-    billing["netTotal"] = billing["totalRate"] + (billing.profit * 0.18)
+    const netTotal = totalRate + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
@@ -163,6 +163,11 @@ router.get('/:id', async (req, res) => {
     // Return both the list and total profit
     res.json({
       billing,
+      totalSalesPrice,
+      totalRate,
+      totalPurchasePrice,
+      totalGSTPurchasePrice,
+      netTotal
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
