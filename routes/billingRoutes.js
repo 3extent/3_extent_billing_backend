@@ -123,7 +123,7 @@ router.get('/', async (req, res) => {
 // GET /api/billings/:id
 router.get('/:id', async (req, res) => {
   try {
-    const billing = await Billing.findById(req.params.id)
+    let billing = await Billing.findById(req.params.id)
       .populate('customer')
       .populate({
         path: 'products',
@@ -159,8 +159,6 @@ router.get('/:id', async (req, res) => {
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
     }
-
-
 
     // Return both the list and total profit
     res.json({
