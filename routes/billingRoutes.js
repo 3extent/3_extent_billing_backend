@@ -227,14 +227,21 @@ router.post('/', async (req, res) => {
           error: `Product with IMEI ${product.imei_number} is already sold`
         });
       }
+      console.log("singleProduct", singleProduct);
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: singleProduct.gst_purchase_price });
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
+
       updatedProducts.push(product);
     }
 
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
+    console.log("foundProducts", foundProducts);
+
+
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
+
     const profit = totalCost - totalGSTPurchasePrice;
 
     let billStatus = status;
@@ -366,7 +373,7 @@ router.put('/:id', async (req, res) => {
         });
       }
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: singleProduct.gst_purchase_price });
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
       updatedProducts.push(product);
     }
 
@@ -489,7 +496,7 @@ router.put('/payment/:id', async (req, res) => {
           });
         }
 
-        foundProducts.push({ productId: product._id, final_rate: singleProduct.sold_at_price, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price });
+        foundProducts.push({ productId: product._id, final_rate: singleProduct.sold_at_price, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
         updatedProducts.push(product);
       }
     }
