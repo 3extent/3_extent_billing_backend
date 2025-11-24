@@ -366,7 +366,7 @@ router.put('/:id', async (req, res) => {
         });
       }
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price });
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: singleProduct.gst_purchase_price });
       updatedProducts.push(product);
     }
 
