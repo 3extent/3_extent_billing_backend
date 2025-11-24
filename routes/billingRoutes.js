@@ -143,6 +143,8 @@ router.get('/:id', async (req, res) => {
       (sum, product) => sum + (parseInt(product.sold_at_price) ?? 0),
       0
     );
+
+
     const totalPurchasePrice = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.purchase_price) ?? 0),
       0
@@ -151,6 +153,8 @@ router.get('/:id', async (req, res) => {
       (sum, product) => sum + (parseInt(product.gst_purchase_price) ?? 0),
       0
     );
+
+    const netTotal = totalRate + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
@@ -162,7 +166,8 @@ router.get('/:id', async (req, res) => {
       totalSalesPrice,
       totalRate,
       totalPurchasePrice,
-      totalGSTPurchasePrice
+      totalGSTPurchasePrice,
+      netTotal
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
