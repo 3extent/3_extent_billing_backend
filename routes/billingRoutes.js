@@ -135,42 +135,36 @@ router.get('/:id', async (req, res) => {
 
     // Compute profit for each billing and total
     // Then use reduce to compute total profit
-    const totalSalesPrice = billing.products.reduce(
+    billing["totalSalesPrice"] = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.sales_price) ?? 0),
       0
     );
-    const totalRate = billing.products.reduce(
+    billing["totalRate"] = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.sold_at_price) ?? 0),
       0
     );
 
 
-    const totalPurchasePrice = billing.products.reduce(
+    billing["totalPurchasePrice"] = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.purchase_price) ?? 0),
       0
     );
-    const totalGSTPurchasePrice = billing.products.reduce(
+    billing["totalGSTPurchasePrice"] = billing.products.reduce(
       (sum, product) => sum + (parseInt(product.gst_purchase_price) ?? 0),
       0
     );
 
-    const netTotal = totalRate + (billing.profit * 0.18)
+    billing["netTotal"] = totalRate + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
     }
 
-    const billingTotal = {
-      ...billing, totalSalesPrice,
-      totalRate,
-      totalPurchasePrice,
-      totalGSTPurchasePrice,
-      netTotal
-    }
+
 
     // Return both the list and total profit
     res.json({
-      billing: billingTotal
+      billing,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
