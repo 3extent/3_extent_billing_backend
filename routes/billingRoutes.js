@@ -160,14 +160,17 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Billing not found' });
     }
 
-    // Return both the list and total profit
-    res.json({
-      ...billing,
-      totalSalesPrice,
+    const billingTotal = {
+      ...billing, totalSalesPrice,
       totalRate,
       totalPurchasePrice,
       totalGSTPurchasePrice,
       netTotal
+    }
+
+    // Return both the list and total profit
+    res.json({
+      billing: billingTotal
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
