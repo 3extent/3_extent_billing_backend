@@ -162,7 +162,7 @@ router.get('/:id', async (req, res) => {
 
     // Return both the list and total profit
     res.json({
-      billing,
+      ...billing,
       totalSalesPrice,
       totalRate,
       totalPurchasePrice,
