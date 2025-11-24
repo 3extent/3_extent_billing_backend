@@ -72,7 +72,7 @@ async function createSingleProduct(productData) {
     imei_number,
     sales_price,
     purchase_price,
-    gst_purchase_price: purchase_price + 500,
+    gst_purchase_price: parseInt(purchase_price) + 500,
     grade,
     engineer_name,
     accessories,
