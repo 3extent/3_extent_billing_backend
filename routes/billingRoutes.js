@@ -147,6 +147,10 @@ router.get('/:id', async (req, res) => {
       (sum, product) => sum + (parseInt(product.purchase_price) ?? 0),
       0
     );
+    const totalGSTPurchasePrice = billing.products.reduce(
+      (sum, product) => sum + (parseInt(product.gst_purchase_price) ?? 0),
+      0
+    );
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
@@ -158,6 +162,7 @@ router.get('/:id', async (req, res) => {
       totalSalesPrice,
       totalRate,
       totalPurchasePrice,
+      totalGSTPurchasePrice
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -229,8 +234,8 @@ router.post('/', async (req, res) => {
 
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
-    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
-    const profit = totalCost - totalPurchasePrice;
+    const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    const profit = totalCost - totalGSTPurchasePrice;
 
     let billStatus = status;
     if (pending_amount > 0 && billStatus !== "DRAFTED") {
@@ -368,8 +373,8 @@ router.put('/:id', async (req, res) => {
     const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
 
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
-    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
-    const profit = totalCost - totalPurchasePrice;
+    const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    const profit = totalCost - totalGSTPurchasePrice;
 
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
       customer: customerId,
