@@ -154,7 +154,7 @@ router.get('/:id', async (req, res) => {
       0
     );
 
-    billing["netTotal"] = totalRate + (billing.profit * 0.18)
+    billing["netTotal"] = billing["totalRate"] + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
