@@ -154,7 +154,7 @@ router.get('/:id', async (req, res) => {
       0
     );
 
-    const netTotal = totalRate + (billing.profit * 0.18)
+    // const netTotal = totalRate + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
@@ -167,7 +167,7 @@ router.get('/:id', async (req, res) => {
       totalRate,
       totalPurchasePrice,
       totalGSTPurchasePrice,
-      netTotal
+      // netTotal
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -260,6 +260,13 @@ router.post('/', async (req, res) => {
       billStatus = "PAID"
     }
 
+    let netTotal = 0;
+    if (profit > 0)
+      netTotal = payable_amount + (profit * 0.18);
+    else {
+      netTotal = payable_amount + profit
+    }
+
     // Create billing record
     const billing = new Billing({
       customer: customerId,
@@ -269,6 +276,7 @@ router.post('/', async (req, res) => {
       paid_amount,
       status: billStatus,
       profit: profit.toString(),
+      netTotal,
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
