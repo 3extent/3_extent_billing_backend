@@ -343,27 +343,28 @@ router.put('/:id', async (req, res) => {
     if (!customer_name ||
         !contact_number ||
         !Array.isArray(newProducts) ||
-        newProducts.length === 0) {
+        newProducts.length === 0
+    ) {
       return res.status(400).json({
         error: 'Customer name, contact number and products array are required'
       });
     }
 
-    // 1. Find the bill
+    // 1. Load existing bill + products
     const bill = await Billing.findById(req.params.id).populate('products');
     if (!bill) {
       return res.status(404).json({ error: 'Bill not found' });
     }
 
-    // 2. Validate / retrieve customer
+    // 2. Validate customer
     const existingCustomer = await User.findOne({ contact_number: contact_number });
     if (!existingCustomer) {
       return res.status(400).json({ error: 'Customer not found' });
     }
     const customerId = existingCustomer._id;
 
-    // 3. Diff old vs new products by IMEI
-    const oldProducts = bill.products;    // array of Product docs
+    // 3. Diff old vs new product IMEIs
+    const oldProducts = bill.products;  // array of product docs
     const oldImeis = oldProducts.map(p => p.imei_number.toString());
     const newImeis = newProducts.map(p => p.imei_number.toString());
 
@@ -375,23 +376,28 @@ router.put('/:id', async (req, res) => {
       imei => oldImeis.includes(imei)
     );
 
-    // 4. Handle removals: revert status for removed items
+    // 4. Handle removed IMEIs: revert status, but only on last-updated doc
     for (const imei of removedImeis) {
-      const product = await Product.findOne({ imei_number: imei });
-      if (product) {
-        // if product exists and status was SOLD → mark RETURN, else AVAILABLE
-        product.status = (product.status === 'SOLD' ? 'RETURN' : 'AVAILABLE');
-        product.sold_at_price = undefined;
-        product.updated_at = moment.utc().valueOf();
-        await product.save();
+      // 4.a fetch ALL products with this IMEI
+      const allProducts = await Product.find({ imei_number: imei });
+
+      const hasAnySold = allProducts.some(p => p.status === 'SOLD');
+
+      // 4.b pick the most recently updated product doc (by updatedAt / updated_at)
+      const productToRevert = await Product.findOne({ imei_number: imei })
+        .sort({ updatedAt: -1 });  // or updated_at: -1 if using custom field
+
+      if (productToRevert) {
+        productToRevert.status = hasAnySold ? 'RETURN' : 'AVAILABLE';
+        productToRevert.sold_at_price = undefined;
+        productToRevert.updated_at = moment.utc().valueOf();
+        await productToRevert.save();
       } else {
-        // Product does not exist in DB → you may decide whether to create a new Product doc or skip
-        // For now, skipping — as there's no record to update
-        console.warn(`Product with IMEI ${imei} not found in DB during revert`);
+        console.warn(`No product document found with IMEI ${imei} — nothing to revert`);
       }
     }
 
-    // 5. Handle additions: check availability and mark SOLD
+    // 5. Handle added products: same as before, check AVAILABLE/RETURN, then mark SOLD
     const foundProducts = [];
     const updatedProducts = [];
 
@@ -414,7 +420,7 @@ router.put('/:id', async (req, res) => {
       updatedProducts.push(product);
     }
 
-    // 6. Retain old products info (for IMEIs still present)
+    // 6. Retain existing products (those still in newProducts)
     const retainedProductsInfo = oldProducts
       .filter(p => retainedImeis.includes(p.imei_number.toString()))
       .map(p => {
@@ -429,12 +435,13 @@ router.put('/:id', async (req, res) => {
 
     const allBillProducts = [...retainedProductsInfo, ...foundProducts];
 
+    // 7. Recompute billing amounts, profit, pending
     const pending_amount = payable_amount - paid_amount.reduce((sum, v) => sum + v.amount, 0);
     const totalCost = allBillProducts.reduce((sum, prod) => sum + parseFloat(prod.final_rate), 0);
     const totalGSTPurchasePrice = allBillProducts.reduce((sum, prod) => sum + parseFloat(prod.gst_purchase_price), 0);
     const profit = totalCost - totalGSTPurchasePrice;
 
-    // 7. Update bill with new customer and products list
+    // 8. Update billing
     const updatedBill = await Billing.findByIdAndUpdate(req.params.id, {
       customer: customerId,
       products: allBillProducts.map(p => p.productId),
@@ -446,7 +453,7 @@ router.put('/:id', async (req, res) => {
       update_at: moment.utc().valueOf()
     }, { new: true });
 
-    // 8. Mark newly added products as SOLD (if not DRAFTED)
+    // 9. Mark newly added products as SOLD (if not DRAFTED)
     for (const product of updatedProducts) {
       if (status !== 'DRAFTED') {
         product.status = 'SOLD';
@@ -457,7 +464,7 @@ router.put('/:id', async (req, res) => {
       await product.save();
     }
 
-    // 9. Populate and respond
+    // 10. Populate and respond
     const populatedBilling = await Billing.findById(updatedBill._id)
       .populate('customer')
       .populate({
@@ -469,9 +476,14 @@ router.put('/:id', async (req, res) => {
       });
 
     res.json({
-      message: 'Billing updated successfully, product statuses adjusted',
+      message: 'Billing updated, product statuses adjusted',
       billing: populatedBilling,
-      customerInfo: { id: customerId, name: customer_name, contact_number, isNewCustomer: false },
+      customerInfo: {
+        id: customerId,
+        name: customer_name,
+        contact_number,
+        isNewCustomer: false
+      },
       removedImeis,
       addedImeis: addedProductsInput.map(p => p.imei_number)
     });
@@ -481,7 +493,6 @@ router.put('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 
 // PUT /api/billing/payment
