@@ -334,55 +334,79 @@ router.post('/', async (req, res) => {
 // PUT /api/billing/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
-    const billId = req.params.id;
+    const {
+      customer_name,
+      contact_number,
+      products: newProducts,
+      payable_amount,
+      paid_amount,
+      status
+    } = req.body;
 
-    // Validate input
-    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
+    if (!customer_name ||
+        !contact_number ||
+        !Array.isArray(newProducts) ||
+        newProducts.length === 0) {
+      return res.status(400).json({
+        error: 'Customer name, contact number and products array are required'
+      });
     }
 
-    // Fetch existing bill
-    const existingBill = await Billing.findById(billId);
-    if (!existingBill) {
+    // 1. Find the bill
+    const bill = await Billing.findById(req.params.id).populate('products');
+    if (!bill) {
       return res.status(404).json({ error: 'Bill not found' });
     }
 
-    // Determine which products were removed
-    // existingBill.products is presumably an array of ObjectIds (product IDs)
-    const existingProductIds = existingBill.products.map(id => id.toString());
-    const newProductIds = products.map(p => p._id ? p._id.toString() : null).filter(Boolean);
+    // 2. Validate / retrieve customer
+    const existingCustomer = await User.findOne({ contact_number: contact_number });
+    if (!existingCustomer) {
+      return res.status(400).json({ error: 'Customer not found' });
+    }
+    const customerId = existingCustomer._id;
 
-    const removedProductIds = existingProductIds.filter(id => !newProductIds.includes(id));
-    const addedProducts = products.filter(p => p._id == null); // or based on IMEI or something, depends on how you send data
-    const keptProducts = products.filter(p => p._id && newProductIds.includes(p._id.toString()));
+    // 3. Diff old vs new products
+    const oldProducts = bill.products;    // array of Product docs
+    const oldImeis = oldProducts.map(p => p.imei_number.toString());
+    const newImeis = newProducts.map(p => p.imei_number.toString());
 
-    // Load removed product documents, to change status back to AVAILABLE if needed
-    const removedProducts = await Product.find({ _id: { $in: removedProductIds } });
+    const removedImeis = oldImeis.filter(imei => !newImeis.includes(imei));
+    const addedProductsInput = newProducts.filter(
+      p => !oldImeis.includes(p.imei_number.toString())
+    );
+    const retainedImeis = newImeis.filter(
+      imei => oldImeis.includes(imei)
+    );
 
-    for (const prod of removedProducts) {
-      if (prod.status === 'SOLD') {
-        prod.status = 'AVAILABLE';
-        await prod.save();
+    // 4. Handle removals (revert status)
+    for (const imei of removedImeis) {
+      const product = await Product.findOne({ imei_number: imei });
+      if (!product) {
+        console.warn(`Product with IMEI ${imei} was in bill but not found in DB during revert`);
+      } else {
+        // Decide status. You need your own logic for deciding AVAILABLE or RETURN.
+        const wasPreviouslySold = productWasSoldBefore(product); // <-- implement this
+        product.status = wasPreviouslySold ? 'RETURN' : 'AVAILABLE';
+        product.sold_at_price = undefined;
+        product.updated_at = moment.utc().valueOf();
+        await product.save();
       }
     }
 
-    // Now process the products in the new list (kept + newly added)
+    // 5. Handle additions: check availability
     const foundProducts = [];
     const updatedProducts = [];
 
-    for (const singleProduct of products) {
-      // Find product by IMEI (or ID) as before
+    for (const singleProduct of addedProductsInput) {
       const product = await Product.findOne({
         imei_number: singleProduct.imei_number,
         status: { $in: ['AVAILABLE', 'RETURN'] }
       });
-
       if (!product) {
-        return res.status(400).json({ error: `Product with IMEI ${singleProduct.imei_number} not found or not available` });
+        return res.status(400).json({
+          error: `Product with IMEI ${singleProduct.imei_number} not found or not available`
+        });
       }
-
-      // If the product was in removed list, we have already fetched it above; but now it's coming back
       foundProducts.push({
         productId: product._id,
         final_rate: singleProduct.rate,
@@ -392,43 +416,51 @@ router.put('/:id', async (req, res) => {
       updatedProducts.push(product);
     }
 
-    // Calculate pending, profit, etc.
-    const pending_amount = payable_amount - paid_amount.reduce((sum, p) => sum + p.amount, 0);
-    const totalCost = foundProducts.reduce((s, p) => s + parseFloat(p.final_rate), 0);
-    const totalGSTPurchase = foundProducts.reduce((s, p) => s + parseFloat(p.gst_purchase_price), 0);
-    const profit = totalCost - totalGSTPurchase;
+    // 6. Retain old products info for those not removed
+    const retainedProductsInfo = oldProducts
+      .filter(p => retainedImeis.includes(p.imei_number.toString()))
+      .map(p => {
+        // find new rate if changed else preserve old sold_at_price
+        const newEntry = newProducts.find(x => x.imei_number.toString() === p.imei_number.toString());
+        return {
+          productId: p._id,
+          final_rate: newEntry ? newEntry.rate : p.sold_at_price,
+          purchase_price: p.purchase_price,
+          gst_purchase_price: p.gst_purchase_price || p.purchase_price
+        };
+      });
 
-    // Update billing document
-    const updatedBill = await Billing.findByIdAndUpdate(
-      billId,
-      {
-        customer: existingBill.customer,  // or update if changed
-        products: foundProducts.map(fp => fp.productId),
-        payable_amount,
-        pending_amount,
-        paid_amount,
-        status,
-        profit: profit.toString(),
-        updated_at: moment.utc().valueOf()
-      },
-      { new: true }
-    );
+    const allBillProducts = [...retainedProductsInfo, ...foundProducts];
 
-    // Update each product that is in kept or newly added list
-    for (const prod of updatedProducts) {
-      // If bill status is not DRAFTED (or some logic), mark product sold
-      if (status !== "DRAFTED") {
-        prod.status = 'SOLD';
+    const pending_amount = payable_amount - paid_amount.reduce((sum, v) => sum + v.amount, 0);
+    const totalCost = allBillProducts.reduce((sum, prod) => sum + parseFloat(prod.final_rate), 0);
+    const totalGSTPurchasePrice = allBillProducts.reduce((sum, prod) => sum + parseFloat(prod.gst_purchase_price), 0);
+    const profit = totalCost - totalGSTPurchasePrice;
+
+    // 7. Update bill with new customer and product list
+    const updatedBill = await Billing.findByIdAndUpdate(req.params.id, {
+      customer: customerId,
+      products: allBillProducts.map(p => p.productId),
+      payable_amount,
+      pending_amount,
+      paid_amount,
+      status,
+      profit: profit.toString(),
+      update_at: moment.utc().valueOf()
+    }, { new: true });
+
+    // 8. Mark newly added products as SOLD (if not DRAFTED)
+    for (const product of updatedProducts) {
+      if (status !== 'DRAFTED') {
+        product.status = 'SOLD';
       }
-      const fp = foundProducts.find(fp => fp.productId.toString() === prod._id.toString());
-      if (fp) {
-        prod.sold_at_price = fp.final_rate;
-        prod.updated_at = moment.utc().valueOf();
-      }
-      await prod.save();
+      const info = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      product.sold_at_price = info.final_rate;
+      product.updated_at = moment.utc().valueOf();
+      await product.save();
     }
 
-    // Populate and return
+    // 9. Populate and respond
     const populatedBilling = await Billing.findById(updatedBill._id)
       .populate('customer')
       .populate({
@@ -440,10 +472,16 @@ router.put('/:id', async (req, res) => {
       });
 
     res.json({
-      message: 'Billing updated successfully',
+      message: 'Billing updated successfully, products statuses adjusted',
       billing: populatedBilling,
-      removedProducts: removedProductIds,
-      addedProducts: addedProducts.map(p => p.imei_number) // or whatever identifier
+      customerInfo: {
+        id: customerId,
+        name: customer_name,
+        contact_number,
+        isNewCustomer: false
+      },
+      removedImeis,
+      addedImeis: addedProductsInput.map(p => p.imei_number)
     });
 
   } catch (err) {
