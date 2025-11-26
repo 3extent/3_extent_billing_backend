@@ -260,11 +260,9 @@ router.post('/', async (req, res) => {
       billStatus = "PAID"
     }
 
-    let netTotal = 0;
-    if (profit > 0)
-      netTotal = payable_amount + (profit * 0.18);
-    else {
-      netTotal = payable_amount + profit
+    let net_total = payable_amount + profit;
+    if (profit > 0) {
+      net_total = payable_amount + (profit * 0.18);
     }
 
     // Create billing record
@@ -276,7 +274,7 @@ router.post('/', async (req, res) => {
       paid_amount,
       status: billStatus,
       profit: profit.toString(),
-      netTotal,
+      net_total,
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
@@ -344,9 +342,9 @@ router.put('/:id', async (req, res) => {
     } = req.body;
 
     if (!customer_name ||
-        !contact_number ||
-        !Array.isArray(newProducts) ||
-        newProducts.length === 0) {
+      !contact_number ||
+      !Array.isArray(newProducts) ||
+      newProducts.length === 0) {
       return res.status(400).json({
         error: 'Customer name, contact number and products array are required'
       });
