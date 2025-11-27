@@ -21,6 +21,7 @@ const billingSchema = new mongoose.Schema({
     }
   ],
   pending_amount: { type: String, required: true },
+  net_total: { type: String, required: true },
   profit: { type: String, required: true },
   status: { type: String, required: true },
   created_at: { type: Number, default: moment.utc().valueOf() },
