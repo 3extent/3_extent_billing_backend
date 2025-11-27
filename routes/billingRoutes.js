@@ -341,9 +341,9 @@ router.put('/:id', async (req, res) => {
     } = req.body;
 
     if (!customer_name ||
-        !contact_number ||
-        !Array.isArray(newProducts) ||
-        newProducts.length === 0
+      !contact_number ||
+      !Array.isArray(newProducts) ||
+      newProducts.length === 0
     ) {
       return res.status(400).json({
         error: 'Customer name, contact number and products array are required'
@@ -441,6 +441,10 @@ router.put('/:id', async (req, res) => {
     const totalGSTPurchasePrice = allBillProducts.reduce((sum, prod) => sum + parseFloat(prod.gst_purchase_price), 0);
     const profit = totalCost - totalGSTPurchasePrice;
 
+    let net_total = payable_amount + profit;
+    if (profit > 0) {
+      net_total = payable_amount + (profit * 0.18);
+    }
     // 8. Update billing
     const updatedBill = await Billing.findByIdAndUpdate(req.params.id, {
       customer: customerId,
@@ -448,6 +452,7 @@ router.put('/:id', async (req, res) => {
       payable_amount,
       pending_amount,
       paid_amount,
+      net_total,
       status,
       profit: profit.toString(),
       update_at: moment.utc().valueOf()
@@ -463,6 +468,7 @@ router.put('/:id', async (req, res) => {
       product.updated_at = moment.utc().valueOf();
       await product.save();
     }
+
 
     // 10. Populate and respond
     const populatedBilling = await Billing.findById(updatedBill._id)
