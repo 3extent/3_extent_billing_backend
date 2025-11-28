@@ -260,9 +260,14 @@ router.post('/', async (req, res) => {
       billStatus = "PAID"
     }
 
-    let net_total = payable_amount + profit;
+    let c_gst = 0;
+    let s_gst = 0;
+
+    let net_total = payable_amount;
     if (profit > 0) {
-      net_total = payable_amount + (profit * 0.18);
+      c_gst = profit * 0.09;
+      s_gst = profit * 0.09;
+      net_total = payable_amount + c_gst + s_gst;
     }
 
     // Create billing record
@@ -275,6 +280,8 @@ router.post('/', async (req, res) => {
       status: billStatus,
       profit: profit.toString(),
       net_total,
+      c_gst,
+      s_gst,
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
@@ -393,9 +400,14 @@ router.put('/:id', async (req, res) => {
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
     const profit = totalCost - totalGSTPurchasePrice;
 
-    let net_total = payable_amount + profit;
+    let c_gst = 0;
+    let s_gst = 0;
+
+    let net_total = payable_amount;
     if (profit > 0) {
-      net_total = payable_amount + (profit * 0.18);
+      c_gst = profit * 0.09;
+      s_gst = profit * 0.09;
+      net_total = payable_amount + c_gst + s_gst;
     }
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
       customer: customerId,
@@ -404,6 +416,8 @@ router.put('/:id', async (req, res) => {
       pending_amount: pending_amount,
       paid_amount,
       net_total,
+      s_gst,
+      c_gst,
       status,
       profit: profit.toString(),
       update_at: moment.utc().valueOf()
