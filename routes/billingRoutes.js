@@ -542,7 +542,14 @@ router.put('/payment/:id', async (req, res) => {
       paid_amount,
       status: billStatus,
       update_at: moment.utc().valueOf()
-    }, { new: true });
+    }, { new: true }).populate('customer')
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
+      });
 
 
     res.json(billing);
