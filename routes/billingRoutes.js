@@ -393,12 +393,17 @@ router.put('/:id', async (req, res) => {
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
     const profit = totalCost - totalGSTPurchasePrice;
 
+    let net_total = payable_amount + profit;
+    if (profit > 0) {
+      net_total = payable_amount + (profit * 0.18);
+    }
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
       customer: customerId,
       products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
       pending_amount: pending_amount,
       paid_amount,
+      net_total,
       status,
       profit: profit.toString(),
       update_at: moment.utc().valueOf()
