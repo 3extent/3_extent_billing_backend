@@ -12,33 +12,38 @@ router.get('/', async (req, res) => {
 
     const filter = {};
 
-    // Customer filter (by name or contact number)
+
+    // If user explicitly passes status param — override (or include) as needed
+    if (status) {
+      filter.status = status;
+    } else {
+      // By default exclude DRAFTED and REMOVED_DRAFTED
+      filter.status = { $nin: ['DRAFTED', 'REMOVED_DRAFTED'] };
+
+    }
+
+    // Customer filter
     if (customer_name || contact_number) {
       const userQuery = {};
       if (customer_name) {
         userQuery.name = { $regex: customer_name, $options: 'i' };
       }
       if (contact_number) {
-        // Note: if both provided, it uses AND logic
         userQuery.contact_number = { $regex: contact_number, $options: 'i' };
       }
       const userFromDB = await User.findOne(userQuery).select('_id');
-      if (userFromDB) {
-        filter.customer = userFromDB._id;
-      } else {
-        // No user matching, return empty result early
-        return res.json([]);
+      if (!userFromDB) {
+        return res.json({ billings: [], totalAmount: 0, totalRemaining: 0, totalProfit: 0, totalProducts: 0 });
       }
+      filter.customer = userFromDB._id;
     }
 
-    // Status filter
-    if (status) {
-      filter.status = status;
-    }
-
-    const productFromDB = await Product.findOne({ imei_number })
-    console.log("productFromDB", productFromDB)
+    // IMEI / product filter
     if (imei_number) {
+      const productFromDB = await Product.findOne({ imei_number });
+      if (!productFromDB) {
+        return res.json({ billings: [], totalAmount: 0, totalRemaining: 0, totalProfit: 0, totalProducts: 0 });
+      }
       filter.products = productFromDB._id;
     }
     console.log("filter", filter)
@@ -54,7 +59,6 @@ router.get('/', async (req, res) => {
           range.$gte = fromDate;
         }
       }
-
       if (to) {
         const toMs = Number(to);
         if (!Number.isNaN(toMs)) {
@@ -62,26 +66,16 @@ router.get('/', async (req, res) => {
           range.$lte = toDate;
         }
       }
-
       if (Object.keys(range).length > 0) {
         filter.created_at = range;
       }
-
-      console.log("Date range filter:", range);
     }
 
-    console.log("filter", filter);
-
-
-    // Fetch with filter
     const billings = await Billing.find(filter)
       .populate('customer')
       .populate({
         path: 'products',
-        populate: {
-          path: 'model',
-          populate: { path: 'brand' }
-        }
+        populate: { path: 'model', populate: { path: 'brand' } }
       })
       .sort({ created_at: -1 });
 
