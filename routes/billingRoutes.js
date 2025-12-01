@@ -405,9 +405,25 @@ router.put('/:id', async (req, res) => {
     }
 
     const pending_amount = payable_amount - paid_amount.reduce((sum, pay) => sum + pay.amount, 0);
+
+    const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
+    console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
+
+    const profitToShow = totalCost - totalGSTPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePrice;
+
     const totalCost = foundProducts.reduce((sum, fp) => sum + parseFloat(fp.final_rate), 0);
-    const totalGST = foundProducts.reduce((sum, fp) => sum + parseFloat(fp.gst_purchase_price), 0);
-    const actualProfit = totalCost - totalGST;
+    let c_gst = 0;
+    let s_gst = 0;
+
+    let net_total = payable_amount;
+    if (profitToShow > 0) {
+      c_gst = profitToShow * 0.09;
+      s_gst = profitToShow * 0.09;
+      net_total = payable_amount + c_gst + s_gst;
+    }
+
 
     bill.customer = customerId;
     bill.products = foundProducts.map(fp => fp.productId);
@@ -416,6 +432,10 @@ router.put('/:id', async (req, res) => {
     bill.paid_amount = paid_amount;
     bill.status = status;
     bill.actualProfit = actualProfit.toString();
+    bill.profitToShow = profitToShow.toString();
+    bill.net_total = net_total;
+    bill.c_gst = c_gst.toString();
+    bill.s_gst = s_gst.toString();
     bill.updated_at = moment.utc().valueOf();
 
     const savedBill = await bill.save();
