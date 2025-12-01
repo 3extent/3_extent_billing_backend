@@ -148,6 +148,7 @@ router.get('/:id', async (req, res) => {
       0
     );
 
+    // const netTotal = totalRate + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
@@ -160,6 +161,7 @@ router.get('/:id', async (req, res) => {
       totalRate,
       totalPurchasePrice,
       totalGSTPurchasePrice,
+      // netTotal
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -275,8 +277,6 @@ router.post('/', async (req, res) => {
       profitToShow: profitToShow.toString(),
       actualProfit: actualProfit.toString(),
       net_total,
-      c_gst,
-      s_gst,
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
@@ -335,136 +335,127 @@ router.put('/:id', async (req, res) => {
   try {
     const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
-    // Validate required fields
-    if (!customer_name || !contact_number || !products || !Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({
-        error: 'Customer name, contact number and products array are required'
-      });
+    if (!customer_name || !contact_number || !products || !Array.isArray(products)) {
+      return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
     }
 
-    const bill = await Billing.findById(req.params.id)
-    console.log(bill);
-    // console.log(paid_amount);
-    // Check if customer already exists based on contact number
-    let existingCustomer = await User.findOne({ contact_number: contact_number });
-
-
-    let customerId;
-    if (existingCustomer) {
-      // Customer exists, use existing customer ID
-      customerId = existingCustomer._id;
-      console.log(`Using existing customer: ${existingCustomer.name} (${existingCustomer.contact_number})`);
-    } else {
-      return res.status(400).json({
-        error: `Customer not found`
-      });
+    const bill = await Billing.findById(req.params.id);
+    if (!bill) {
+      return res.status(404).json({ error: 'Billing record not found' });
     }
 
-    // Validate products and update their status to 'sold'
+    const existingCustomer = await User.findOne({ contact_number });
+    if (!existingCustomer) {
+      return res.status(400).json({ error: 'Customer not found' });
+    }
+    const customerId = existingCustomer._id;
+
+    // Determine which products are removed (present in old bill, not in new list)
+    const oldProductIds = bill.products.map(id => id.toString());
+    const newImeis = products.map(p => p.imei_number);
+
+    const oldProducts = await Product.find({ _id: { $in: oldProductIds } });
+
+    // Handle removals
+    for (const p of oldProducts) {
+      if (!newImeis.includes(p.imei_number)) {
+        // This product was removed from bill
+        // Check if any other product with same IMEI exists in DB
+        const other = await Product.findOne({
+          imei_number: p.imei_number,
+          _id: { $ne: p._id }
+        });
+
+        if (other && other.status === 'SOLD') {
+          // Another product with same IMEI is SOLD → mark this removed one as RETURN
+          p.status = 'RETURN';
+        } else {
+          // No other sold product with same IMEI → make AVAILABLE
+          p.status = 'AVAILABLE';
+        }
+        p.sold_at_price = undefined;
+        p.updated_at = moment.utc().valueOf();
+        await p.save();
+      }
+    }
+
+    // Now process additions / kept items
     const foundProducts = [];
     const updatedProducts = [];
 
     for (const singleProduct of products) {
-      // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
-      // If multiple exist, this ensures we get the correct one
       let product = await Product.findOne({
         imei_number: singleProduct.imei_number,
-        status: { $in: ['AVAILABLE', 'RETURN'] } // Only find available products
+        status: { $in: ['AVAILABLE', 'RETURN'] }
       });
 
-      // If not found with AVAILABLE status, check if it exists with other status
       if (!product) {
         return res.status(400).json({
-          error: `Product with IMEI ${singleProduct.imei_number} not found`
+          error: `Product with IMEI ${singleProduct.imei_number} not found or not available`
         });
       }
 
-      if (product.status === 'SOLD') {
-        return res.status(400).json({
-          error: `Product with IMEI ${product.imei_number} is already sold`
-        });
-      }
-
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
+      foundProducts.push({
+        productId: product._id,
+        final_rate: singleProduct.rate,
+        purchase_price: product.purchase_price,
+        gst_purchase_price: product.gst_purchase_price || product.purchase_price
+      });
       updatedProducts.push(product);
     }
 
-    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+    const pending_amount = payable_amount - paid_amount.reduce((sum, pay) => sum + pay.amount, 0);
+    const totalCost = foundProducts.reduce((sum, fp) => sum + parseFloat(fp.final_rate), 0);
+    const totalGST = foundProducts.reduce((sum, fp) => sum + parseFloat(fp.gst_purchase_price), 0);
+    const actualProfit = totalCost - totalGST;
 
-    const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
-    const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
-    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
+    bill.customer = customerId;
+    bill.products = foundProducts.map(fp => fp.productId);
+    bill.payable_amount = payable_amount;
+    bill.pending_amount = pending_amount;
+    bill.paid_amount = paid_amount;
+    bill.status = status;
+    bill.actualProfit = actualProfit.toString();
+    bill.updated_at = moment.utc().valueOf();
 
-    const profitToShow = totalCost - totalGSTPurchasePrice;
-    const actualProfit = totalCost - totalPurchasePrice;
+    const savedBill = await bill.save();
 
-    let c_gst = 0;
-    let s_gst = 0;
-
-    let net_total = payable_amount;
-    if (profitToShow > 0) {
-      c_gst = profitToShow * 0.09;
-      s_gst = profitToShow * 0.09;
-      net_total = payable_amount + c_gst + s_gst;
-    }
-    const billing = await Billing.findByIdAndUpdate(req.params.id, {
-      customer: customerId,
-      products: foundProducts.map((singleProduct) => singleProduct.productId),
-      payable_amount,
-      pending_amount: pending_amount,
-      paid_amount,
-      net_total,
-      s_gst,
-      c_gst,
-      status,
-      profitToShow: profitToShow.toString(),
-      actualProfit: actualProfit.toString(),
-      update_at: moment.utc().valueOf()
-    }, { new: true });
-
-
+    // Update all (new / kept) products status to SOLD (if not DRAFTED)
     for (const product of updatedProducts) {
-      if (status !== "DRAFTED") {
-
+      if (status !== 'DRAFTED') {
         product.status = 'SOLD';
       }
-      // Find the corresponding final_rate from foundProducts
-      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
-      if (foundProduct) {
-        product.sold_at_price = foundProduct.final_rate;
-        product.updated_at = moment.utc().valueOf();
-      }
-
+      const fp = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      product.sold_at_price = fp.final_rate;
+      product.updated_at = moment.utc().valueOf();
       await product.save();
     }
 
-
-    // Populate the billing record with customer and product details
-    const populatedBilling = await Billing.findById(billing._id)
+    const populatedBilling = await Billing.findById(savedBill._id)
       .populate('customer')
       .populate({
         path: 'products',
-        populate: {
-          path: 'model',
-          populate: { path: 'brand' }
-        }
+        populate: { path: 'model', populate: { path: 'brand' } }
       });
+
     res.json({
-      message: 'Billing created successfully and products marked as sold',
+      message: 'Billing updated successfully',
       billing: populatedBilling,
       productsUpdated: updatedProducts.length,
       customerInfo: {
         id: customerId,
         name: customer_name,
-        contact_number: contact_number,
-        isNewCustomer: !existingCustomer
+        contact_number,
+        isNewCustomer: false
       }
     });
-
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
+
 
 // PUT /api/billing/payment
 router.put('/payment/:id', async (req, res) => {
