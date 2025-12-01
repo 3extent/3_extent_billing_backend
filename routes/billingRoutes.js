@@ -581,31 +581,30 @@ router.put('/payment/:id', async (req, res) => {
 // DELETE /api/billings/:id
 router.delete('/:id', async (req, res) => {
   try {
-    // Find the bill first
     const billing = await Billing.findById(req.params.id);
-
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
     }
-
-    // Check if status is DRAFTED
     if (billing.status !== 'DRAFTED') {
       return res.status(400).json({
         error: 'Only bills with status DRAFTED can be deleted'
       });
     }
 
-    // Delete the bill
-    await Billing.findByIdAndDelete(req.params.id);
+    // Soft delete: set status to REMOVED_DRAFTED (or add isDeleted flag)
+    billing.status = 'REMOVED_DRAFTED';
+    // optionally also track deletion time
+    billing.updated_at = moment.utc().valueOf();
+    await billing.save();
 
     res.json({
-      message: 'Billing deleted successfully (status was DRAFTED)',
-      deletedBillingId: req.params.id
+      message: 'Billing soft-deleted (status set to REMOVED_DRAFTED)',
+      billingId: req.params.id
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 module.exports = router;
