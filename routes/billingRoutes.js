@@ -90,7 +90,7 @@ router.get('/', async (req, res) => {
       0
     );
     const totalProfit = billings.reduce(
-      (sum, billing) => sum + (parseInt(billing.profit) ?? 0),
+      (sum, billing) => sum + (parseInt(billing.actualProfit) ?? 0),
       0
     );
 
@@ -148,7 +148,6 @@ router.get('/:id', async (req, res) => {
       0
     );
 
-    // const netTotal = totalRate + (billing.profit * 0.18)
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
@@ -161,7 +160,6 @@ router.get('/:id', async (req, res) => {
       totalRate,
       totalPurchasePrice,
       totalGSTPurchasePrice,
-      // netTotal
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -239,9 +237,11 @@ router.post('/', async (req, res) => {
 
 
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
     console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
 
-    const profit = totalCost - totalGSTPurchasePrice;
+    const profitToShow = totalCost - totalGSTPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePrice;
 
     let billStatus = status;
     if (pending_amount > 0 && billStatus !== "DRAFTED") {
@@ -258,9 +258,9 @@ router.post('/', async (req, res) => {
     let s_gst = 0;
 
     let net_total = payable_amount;
-    if (profit > 0) {
-      c_gst = profit * 0.09;
-      s_gst = profit * 0.09;
+    if (profitToShow > 0) {
+      c_gst = profitToShow * 0.09;
+      s_gst = profitToShow * 0.09;
       net_total = payable_amount + c_gst + s_gst;
     }
 
@@ -272,7 +272,8 @@ router.post('/', async (req, res) => {
       pending_amount: pending_amount,
       paid_amount,
       status: billStatus,
-      profit: profit.toString(),
+      profitToShow: profitToShow.toString(),
+      actualProfit: actualProfit.toString(),
       net_total,
       c_gst,
       s_gst,
@@ -392,15 +393,18 @@ router.put('/:id', async (req, res) => {
 
     const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
-    const profit = totalCost - totalGSTPurchasePrice;
+    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
+
+    const profitToShow = totalCost - totalGSTPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePrice;
 
     let c_gst = 0;
     let s_gst = 0;
 
     let net_total = payable_amount;
-    if (profit > 0) {
-      c_gst = profit * 0.09;
-      s_gst = profit * 0.09;
+    if (profitToShow > 0) {
+      c_gst = profitToShow * 0.09;
+      s_gst = profitToShow * 0.09;
       net_total = payable_amount + c_gst + s_gst;
     }
     const billing = await Billing.findByIdAndUpdate(req.params.id, {
@@ -413,7 +417,8 @@ router.put('/:id', async (req, res) => {
       s_gst,
       c_gst,
       status,
-      profit: profit.toString(),
+      profitToShow: profitToShow.toString(),
+      actualProfit: actualProfit.toString(),
       update_at: moment.utc().valueOf()
     }, { new: true });
 
