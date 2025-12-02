@@ -329,14 +329,11 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 // PUT /api/billing/:id
 router.put('/:id', async (req, res) => {
-  const session = await mongoose.startSession();
   try {
     const { customer_name, contact_number, products, payable_amount, paid_amount = [], status } = req.body;
 
-    // Basic validation
     if (!customer_name || !contact_number || !products || !Array.isArray(products)) {
       return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
     }
@@ -354,50 +351,38 @@ router.put('/:id', async (req, res) => {
     }
     const customerId = existingCustomer._id;
 
-    // --- Prepare sets / maps ---
-    // Old products (IDs) in bill (we'll fetch full docs for them)
+    // Old products
     const oldProductIds = bill.products.map(id => id.toString());
-
-    // Incoming IMEIs + map to provided rate
     const incomingImeis = products.map(p => p.imei_number);
+
     const incomingRateMap = {};
     for (const p of products) incomingRateMap[p.imei_number] = p.rate;
 
-    // Fetch full product docs for products currently in bill (old)
+    // Fetch old products
     const oldProducts = await Product.find({ _id: { $in: oldProductIds } });
-
-    // Map imei -> product doc (for old ones)
     const oldImeis = oldProducts.map(p => p.imei_number);
+
     const oldByImei = {};
     for (const p of oldProducts) oldByImei[p.imei_number] = p;
 
-    // Determine removed IMEIs (present in old bill but not in incoming list)
-    const removedImeis = oldImeis.filter(imei => !incomingImeis.includes(imei));
+    // Determine changes
+    const removedImeis = oldImeis.filter(i => !incomingImeis.includes(i));
     const removedProductDocs = oldProducts.filter(p => removedImeis.includes(p.imei_number));
 
-    // Determine kept IMEIs (present both in old and incoming)
-    const keptImeis = oldImeis.filter(imei => incomingImeis.includes(imei));
+    const keptImeis = oldImeis.filter(i => incomingImeis.includes(i));
+    const newAddedImeis = incomingImeis.filter(i => !oldImeis.includes(i));
 
-    // Determine newly added IMEIs (present in incoming but not in old)
-    const newAddedImeis = incomingImeis.filter(imei => !oldImeis.includes(imei));
-
-    // --- Start transaction to ensure consistency (if supported) ---
-    await session.startTransaction();
-
-    // 1) Handle removals: update statuses for removed products
+    // -------- HANDLE REMOVALS --------
     if (removedProductDocs.length > 0) {
-      // Find if any other product (not the removed one) exists with same IMEI and is SOLD
-      // This fetches ANY other product with those IMEIs and status SOLD
+      // Check for other SOLD products with same IMEI
       const otherSold = await Product.find({
         imei_number: { $in: removedImeis },
         status: 'SOLD',
         _id: { $nin: removedProductDocs.map(p => p._id) }
-      }).session(session);
+      });
 
-      // Build map imei -> existsSoldOther
       const soldOtherSet = new Set(otherSold.map(p => p.imei_number));
 
-      // Update each removed product accordingly
       for (const p of removedProductDocs) {
         if (soldOtherSet.has(p.imei_number)) {
           p.status = 'RETURN';
@@ -406,62 +391,63 @@ router.put('/:id', async (req, res) => {
         }
         p.sold_at_price = undefined;
         p.updated_at = moment.utc().valueOf();
-        await p.save({ session });
+        await p.save();
       }
     }
 
-    // 2) Validate newly added products in one query
-    // They must exist and have status AVAILABLE or RETURN
+
+    // -------- VALIDATE NEWLY ADDED PRODUCTS --------
     let newlyAddedProducts = [];
     if (newAddedImeis.length > 0) {
       newlyAddedProducts = await Product.find({
         imei_number: { $in: newAddedImeis },
         status: { $in: ['AVAILABLE', 'RETURN'] }
-      }).session(session);
+      });
 
-      // If any incoming new IMEI is missing (count mismatch), error
       const foundNewImeis = newlyAddedProducts.map(p => p.imei_number);
       const missing = newAddedImeis.filter(i => !foundNewImeis.includes(i));
+
       if (missing.length > 0) {
-        // Abort transaction
-        await session.abortTransaction();
         return res.status(400).json({ error: `Products not found or not available: ${missing.join(', ')}` });
       }
     }
 
-    // 3) Build foundProducts array (all products that will be on bill -> kept + newly added)
-    // For kept products use existing old product docs, for newly added use newlyAddedProducts docs
-    const foundProducts = [];
-    const updatedProducts = []; // product docs we'll update (sold_at_price/status)
 
-    // Kept items:
+    // -------- BUILD NEW BILL PRODUCT LIST --------
+    const foundProducts = [];
+    const updatedProducts = [];
+
+    // Kept items
     for (const imei of keptImeis) {
       const p = oldByImei[imei];
       const finalRate = incomingRateMap[imei];
+
       foundProducts.push({
         productId: p._id,
         final_rate: finalRate,
         purchase_price: p.purchase_price,
         gst_purchase_price: p.gst_purchase_price || p.purchase_price
       });
-      // We'll update sold_at_price in any case (rate might have changed)
+
       updatedProducts.push(p);
     }
 
-    // Newly added items:
+    // Newly added
     for (const p of newlyAddedProducts) {
       const finalRate = incomingRateMap[p.imei_number];
+
       foundProducts.push({
         productId: p._id,
         final_rate: finalRate,
         purchase_price: p.purchase_price,
         gst_purchase_price: p.gst_purchase_price || p.purchase_price
       });
+
       updatedProducts.push(p);
     }
 
-    // 4) Calculations
-    // Ensure numeric conversions and safe defaults
+
+    // -------- CALCULATE PAYMENTS & PROFITS --------
     const numericPaidArray = Array.isArray(paid_amount) ? paid_amount : [];
     const totalPaid = numericPaidArray.reduce((s, pay) => s + (parseFloat(pay.amount) || 0), 0);
     const pending_amount = (parseFloat(payable_amount) || 0) - totalPaid;
@@ -483,7 +469,8 @@ router.put('/:id', async (req, res) => {
       net_total = net_total + c_gst + s_gst;
     }
 
-    // 5) Update bill fields and save (use findByIdAndUpdate with session to get updated doc)
+
+    // -------- UPDATE BILL --------
     const billUpdate = {
       customer: customerId,
       products: foundProducts.map(fp => fp.productId),
@@ -499,30 +486,26 @@ router.put('/:id', async (req, res) => {
       updated_at: moment.utc().valueOf()
     };
 
-    const savedBill = await Billing.findByIdAndUpdate(req.params.id, billUpdate, { new: true, session });
+    const savedBill = await Billing.findByIdAndUpdate(req.params.id, billUpdate, { new: true });
 
-    // 6) Update product docs (kept + newly added) — set SOLD if bill not DRAFTED,
-    // update sold_at_price to the incoming rate, and updated_at
+
+    // -------- UPDATE PRODUCTS (kept + newly added) --------
     for (const product of updatedProducts) {
-      // If the product is already SOLD and it belongs to this bill, keeping it sold is OK.
-      // But for newly added or if rate changed, update sold_at_price.
       if (status !== 'DRAFTED') {
         product.status = 'SOLD';
       }
-      // Find its final_rate:
+
       const fp = foundProducts.find(f => f.productId.toString() === product._id.toString());
       if (fp) {
         product.sold_at_price = fp.final_rate;
       }
+
       product.updated_at = moment.utc().valueOf();
-      await product.save({ session });
+      await product.save();
     }
 
-    // Commit transaction
-    await session.commitTransaction();
-    session.endSession();
 
-    // Populate the saved bill before returning
+    // -------- RETURN POPULATED BILL --------
     const populatedBilling = await Billing.findById(savedBill._id)
       .populate('customer')
       .populate({
@@ -541,18 +524,13 @@ router.put('/:id', async (req, res) => {
         isNewCustomer: false
       }
     });
-  } catch (err) {
-    // If transaction started, abort
-    try {
-      await session.abortTransaction();
-      session.endSession();
-    } catch (e) { /* ignore */ }
 
+
+  } catch (err) {
     console.error('Error updating billing:', err);
     return res.status(500).json({ error: err.message });
   }
 });
-
 
 
 // PUT /api/billing/payment
