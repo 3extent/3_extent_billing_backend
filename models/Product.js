@@ -14,6 +14,15 @@ const productSchema = new mongoose.Schema({
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: String,
   qc_remark: String,
+
+  //repair details
+  issue: { type: String },
+  repair_cost: { type: Number },
+  repair_remark: { type: String },
+  repair_started_at: { type: Number },
+  repair_completed_at: { type: Number },
+  repair_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
   created_at: { type: Number, default: moment.utc().valueOf() },
   updated_at: { type: Number, default: moment.utc().valueOf() },
   created_by: String

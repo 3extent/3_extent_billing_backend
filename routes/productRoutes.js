@@ -295,4 +295,31 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// PUT /api/products/:id/repair - update repair details
+router.put('/:id/repair', async (req, res) => {
+  try {
+    const { issue, repair_cost, repair_remark, repair_by, status } = req.body;
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    product.issue = issue;
+    if (status === 'IN_REPAIRING') {
+      product.repair_started_at = moment.utc().valueOf();
+    } else if (status === 'REPAIRED') {
+      product.repair_completed_at = moment.utc().valueOf();
+    }
+    product.repair_cost = repair_cost;
+    product.repair_remark = repair_remark;
+    product.repair_by = repair_by;
+    product.status = status;
+    product.updated_at = moment.utc().valueOf();
+    await product.save();
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 module.exports = router;
