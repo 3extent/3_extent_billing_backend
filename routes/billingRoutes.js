@@ -277,6 +277,8 @@ router.post('/', async (req, res) => {
       profitToShow: profitToShow.toString(),
       actualProfit: actualProfit.toString(),
       net_total,
+      c_gst: c_gst.toString(),
+      s_gst: s_gst.toString(),
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
