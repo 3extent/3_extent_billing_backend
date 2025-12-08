@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
       filter.status = status;
     } else {
       // By default exclude DRAFTED and REMOVED_DRAFTED
-      filter.status = { $nin: ['DRAFTED', 'REMOVED_DRAFTED'] };
+      filter.status = { $nin: ['DRAFTED', 'REMOVED_DRAFTED', 'REMOVED_CHECKOUT'] };
 
     }
 
