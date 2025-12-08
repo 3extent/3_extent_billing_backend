@@ -121,14 +121,17 @@ router.get('/:id', async (req, res) => {
       .populate('customer')
       .populate({
         path: 'products',
-        populate: {
-          path: 'model',
-          populate: { path: 'brand' }
-        },
-        populate: {
-          path: 'supplier'
-        },
-      });
+        populate: [
+          {
+            path: 'model',
+            populate: { path: 'brand' }
+          },
+          {
+            path: 'supplier'
+          }
+        ]
+      })
+
 
     // Compute profit for each billing and total
     // Then use reduce to compute total profit
