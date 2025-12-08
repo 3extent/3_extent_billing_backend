@@ -331,6 +331,7 @@ router.post('/', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 // PUT /api/billing/:id
 router.put('/:id', async (req, res) => {
   try {
@@ -660,16 +661,24 @@ router.delete('/:id', async (req, res) => {
       // Soft delete: set status to REMOVED_CHECKOUT (or add isDeleted flag)
       billing.status = 'REMOVED_CHECKOUT';
       if (billing.products.length > 0) {
+
+        const allProducts = await Product.find({
+          _id: { $in: billing.products.map(p => p._id) }
+        });
+
+
         // Check for other SOLD products with same IMEI
         const otherSold = await Product.find({
           imei_number: { $in: billing.products.map(p => p.imei_number) },
           status: 'SOLD',
           _id: { $nin: billing.products.map(p => p._id) }
         });
+        console.log('otherSold: ', otherSold);
 
         const soldOtherSet = new Set(otherSold.map(p => p.imei_number));
+        console.log('soldOtherSet: ', soldOtherSet);
 
-        for (const p of billing.products) {
+        for (const p of allProducts) {
           if (soldOtherSet.has(p.imei_number)) {
             p.status = 'RETURN';
           } else {
