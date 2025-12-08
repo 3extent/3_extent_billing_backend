@@ -191,36 +191,40 @@ router.post('/', async (req, res) => {
 router.post('/bulk', async (req, res) => {
   try {
     const products = req.body;
-
+    
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ error: 'Products array is required and must not be empty' });
     }
 
-    const submittedProducts = [];
+    const seen = new Set();
+    const uniqueProducts = [];
 
-    // Validate/prepare each product (do NOT insert yet)
     for (let i = 0; i < products.length; i++) {
-      try {
-        const productDoc = await createSingleProduct(products[i], { save: false });
-        submittedProducts.push(productDoc);
-      } catch (err) {
-        // If any product fails → throw immediately → nothing should insert
-        throw new Error(`Product at index ${i} failed: ${err.message}`);
+      const imei = products[i].imei_number;
+      if (seen.has(imei)) {
+        // Duplicate IMEI in input — skip or reject
+        return res.status(400).json({
+          error: `Duplicate imei_number '${imei}' found in input at index ${i}`
+        });
       }
+      seen.add(imei);
+      uniqueProducts.push(products[i]);
     }
 
+    // Now uniqueProducts contains only first occurrence of each IMEI
+    const prepared = [];
+    for (let i = 0; i < uniqueProducts.length; i++) {
+      const doc = await createSingleProduct(uniqueProducts[i], { save: false });
+      prepared.push(doc);
+    }
 
-    await Product.insertMany(submittedProducts, { ordered: false });
-
-    res.status(200).json({
-      message: `Successfully inserted ${submittedProducts.length} products.`,
-      products: submittedProducts
-    });
-
+    const result = await Product.insertMany(prepared, { ordered: false });
+    res.status(200).json({ message: `Inserted ${result.length} products.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // PUT /api/products/:id - update a single product
 router.put('/:id', async (req, res) => {
