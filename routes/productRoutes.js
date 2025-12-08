@@ -226,11 +226,6 @@ router.post('/bulk', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = req.body;
-
-    const existingProduct = await Product.findOne({ imei_number });
-    if (existingProduct) {
-      return res.status(400).json({ error: 'IMEI already exists' });
-    }
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
