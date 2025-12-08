@@ -124,7 +124,10 @@ router.get('/:id', async (req, res) => {
         populate: {
           path: 'model',
           populate: { path: 'brand' }
-        }
+        },
+        populate: {
+          path: 'supplier'
+        },
       });
 
     // Compute profit for each billing and total
