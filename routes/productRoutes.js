@@ -316,11 +316,11 @@ router.put('/:id/repair', async (req, res) => {
       product.status = "AVAILABLE";
       product.is_repaired = true;
       product.sales_price = parseInt(product.sales_price) + parseInt(repair_cost);
+      product.repair_cost = repair_cost;
+      product.repair_remark = repair_remark;
       product.repair_completed_at = moment.utc().valueOf();
     }
-
-    product.repair_cost = repair_cost;
-    product.repair_remark = repair_remark;
+    
     product.repair_by = repairer._id;
     product.updated_at = moment.utc().valueOf();
     await product.save();
