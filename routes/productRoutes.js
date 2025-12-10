@@ -191,7 +191,7 @@ router.post('/', async (req, res) => {
 router.post('/bulk', async (req, res) => {
   try {
     const products = req.body;
-    
+
     if (!Array.isArray(products) || products.length === 0) {
       return res.status(400).json({ error: 'Products array is required and must not be empty' });
     }
@@ -298,10 +298,15 @@ router.delete('/:id', async (req, res) => {
 // PUT /api/products/:id/repair - update repair details
 router.put('/:id/repair', async (req, res) => {
   try {
-    const { issue, repair_cost, repair_remark, repair_by, status } = req.body;
+    const { issue, repair_cost, repair_remark, repairer_name, repairer_contact_number, status } = req.body;
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
+    }
+
+    const repairer = await User.findOne({ contact_number: repairer_contact_number });
+    if (!repairer) {
+      return res.status(404).json({ error: 'Repairer not found' });
     }
     product.issue = issue;
     if (status === 'IN_REPAIRING') {
@@ -311,7 +316,7 @@ router.put('/:id/repair', async (req, res) => {
     }
     product.repair_cost = repair_cost;
     product.repair_remark = repair_remark;
-    product.repair_by = repair_by;
+    product.repair_by = repairer._id;
     product.status = status;
     product.updated_at = moment.utc().valueOf();
     await product.save();
