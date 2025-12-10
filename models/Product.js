@@ -14,6 +14,7 @@ const productSchema = new mongoose.Schema({
   supplier: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   status: String,
   qc_remark: String,
+  is_repaired: { type: Boolean, default: false },
 
   //repair details
   issue: { type: String },

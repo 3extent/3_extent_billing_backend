@@ -169,7 +169,7 @@ router.get('/', async (req, res) => {
 
     console.log(filter);
 
-    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').sort({ created_at: -1 });;
+    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by').sort({ created_at: -1 });;
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -265,7 +265,7 @@ router.put('/:id', async (req, res) => {
 // GET /api/products/:id - get a single product
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier');
+    const product = await Product.findById(req.params.id).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by');
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
@@ -310,14 +310,18 @@ router.put('/:id/repair', async (req, res) => {
     }
     product.issue = issue;
     if (status === 'IN_REPAIRING') {
+      product.status = status;
       product.repair_started_at = moment.utc().valueOf();
     } else if (status === 'REPAIRED') {
+      product.status = "AVAILABLE";
+      product.is_repaired = true;
+      product.sales_price = parseInt(product.sales_price) + parseInt(repair_cost);
       product.repair_completed_at = moment.utc().valueOf();
     }
+
     product.repair_cost = repair_cost;
     product.repair_remark = repair_remark;
     product.repair_by = repairer._id;
-    product.status = status;
     product.updated_at = moment.utc().valueOf();
     await product.save();
     res.json(product);
