@@ -315,6 +315,7 @@ router.put('/:id/repair', async (req, res) => {
     product.issue = issue;
     if (status === 'IN_REPAIRING') {
       product.status = status;
+      product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
     } else if (status === 'REPAIRED') {
       product.status = "AVAILABLE";
@@ -325,7 +326,6 @@ router.put('/:id/repair', async (req, res) => {
       product.repair_completed_at = moment.utc().valueOf();
     }
 
-    product.repair_by = repairer._id;
     product.updated_at = moment.utc().valueOf();
     await product.save();
     res.json(product);
