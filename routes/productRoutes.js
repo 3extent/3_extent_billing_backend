@@ -89,7 +89,7 @@ async function createSingleProduct(productData) {
 router.get('/', async (req, res) => {
   try {
     console.log(req.query);
-    const { imei_number, grade, brandName, modelName, status, supplierName, from, to } = req.query;
+    const { imei_number, grade, brandName, modelName, status, supplierName, from, to, is_repaired } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -98,6 +98,10 @@ router.get('/', async (req, res) => {
 
     if (grade) {
       filter.grade = { $regex: grade, $options: 'i' }; // partial, case-insensitive match
+    }
+
+    if (is_repaired) {
+      filter.is_repaired = is_repaired; // partial, case-insensitive match
     }
 
     if (status) {
@@ -305,7 +309,7 @@ router.put('/:id/repair', async (req, res) => {
     }
 
     const repairer = await User.findOne({ contact_number: repairer_contact_number });
-    if (!repairer) {
+    if ((repairer_contact_number) && !repairer) {
       return res.status(404).json({ error: 'Repairer not found' });
     }
     product.issue = issue;
@@ -320,7 +324,7 @@ router.put('/:id/repair', async (req, res) => {
       product.repair_remark = repair_remark;
       product.repair_completed_at = moment.utc().valueOf();
     }
-    
+
     product.repair_by = repairer._id;
     product.updated_at = moment.utc().valueOf();
     await product.save();
