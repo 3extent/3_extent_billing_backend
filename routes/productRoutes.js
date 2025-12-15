@@ -223,7 +223,7 @@ router.post('/bulk', async (req, res) => {
     }
 
     const result = await Product.insertMany(prepared, { ordered: false });
-    res.status(200).json({ message: `Inserted ${result.length} products.` });
+    res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
