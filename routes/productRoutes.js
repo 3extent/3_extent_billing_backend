@@ -307,8 +307,16 @@ router.put('/:id/repair', async (req, res) => {
   try {
     const { issue, imei_number, grade, repair_cost, repair_remark, repairer_contact_number, status } = req.body;
     const product = await Product.findById(req.params.id);
+
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
+    }
+
+    if (imei_number) {
+      const productFromDB = await Product.findOne({ imei_number });
+      if (!productFromDB) {
+        return res.status(404).json({ error: 'IMEI_NUMBER already exists in the system' });
+      }
     }
 
     const repairer = await User.findOne({ contact_number: repairer_contact_number });
