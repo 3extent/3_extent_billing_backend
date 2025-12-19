@@ -312,7 +312,7 @@ router.put('/:id/repair', async (req, res) => {
       return res.status(404).json({ error: 'Product not found' });
     }
 
-    if (imei_number) {
+    if (product.imei_number !== imei_number) {
       const productFromDB = await Product.findOne({ imei_number });
       if (!productFromDB) {
         return res.status(404).json({ error: 'IMEI_NUMBER already exists in the system' });
