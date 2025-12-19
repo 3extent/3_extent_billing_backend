@@ -305,7 +305,7 @@ router.delete('/:id', async (req, res) => {
 // PUT /api/products/:id/repair - update repair details
 router.put('/:id/repair', async (req, res) => {
   try {
-    const { issue, imei_number, grade, repair_cost, repair_remark, repairer_contact_number, status } = req.body;
+    const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status } = req.body;
     const product = await Product.findById(req.params.id);
 
     if (!product) {
@@ -333,9 +333,10 @@ router.put('/:id/repair', async (req, res) => {
       product.grade = grade;
       product.status = "AVAILABLE";
       product.is_repaired = true;
-      product.sales_price = parseInt(product.sales_price) + parseInt(repair_cost);
-      product.repair_cost = repair_cost;
-      product.purchase_cost_including_expenses = parseInt(product.purchase_price) + parseInt(repair_cost);
+      product.sales_price = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
+      product.repairer_cost = repairer_cost;
+      product.part_cost = part_cost;
+      product.purchase_cost_including_expenses = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
       product.repair_remark = repair_remark;
       product.repair_completed_at = moment.utc().valueOf();
     }
