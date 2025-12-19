@@ -305,7 +305,7 @@ router.delete('/:id', async (req, res) => {
 // PUT /api/products/:id/repair - update repair details
 router.put('/:id/repair', async (req, res) => {
   try {
-    const { issue, repair_cost, repair_remark, repairer_name, repairer_contact_number, status } = req.body;
+    const { issue, imei_number, grade, repair_cost, repair_remark, repairer_contact_number, status } = req.body;
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
@@ -321,6 +321,8 @@ router.put('/:id/repair', async (req, res) => {
       product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
     } else if (status === 'REPAIRED') {
+      product.imei_number = imei_number;
+      product.grade = grade;
       product.status = "AVAILABLE";
       product.is_repaired = true;
       product.sales_price = parseInt(product.sales_price) + parseInt(repair_cost);
