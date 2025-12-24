@@ -341,7 +341,7 @@ router.post('/', async (req, res) => {
 // PUT /api/billing/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { customer_name, contact_number, products, payable_amount, paid_amount = [], status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount = [], advance_amount, status } = req.body;
 
     if (!customer_name || !contact_number || !products || !Array.isArray(products)) {
       return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
@@ -486,6 +486,7 @@ router.put('/:id', async (req, res) => {
       payable_amount,
       pending_amount,
       paid_amount: numericPaidArray,
+      advance_amount,
       status,
       actualProfit: actualProfit.toString(),
       profitToShow: profitToShow.toString(),
