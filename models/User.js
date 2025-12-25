@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema({
   pan_number: String,
   role: String,
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+  total_part_cost: String,
   total_amount: String,
   paid_amount: String,
   pending_amount: String,
