@@ -21,7 +21,7 @@ const billingSchema = new mongoose.Schema({
     }
   ],//Total amount paid by user
   pending_amount: { type: String, required: true },//Total amount - paid amount
-  advance_amount: { type: String, required: true },//Advance amount
+  advance_amount: { type: String, default: 0 },//Advance amount
 
   net_total: { type: String, required: true },//Show on Bill
   c_gst: { type: String },//Show on Bill
