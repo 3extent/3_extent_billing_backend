@@ -21,8 +21,8 @@ const productSchema = new mongoose.Schema({
   part_cost: { type: Number },
   repairer_cost: { type: Number },
   repair_remark: { type: String },
-  repair_started_at: { type: Number },
-  repair_completed_at: { type: Number },
+  repair_started_at: { type: Number, default: moment.utc().valueOf() },
+  repair_completed_at: { type: Number, default: moment.utc().valueOf() },
   repair_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 
   purchase_cost_including_expenses: { type: Number },

@@ -22,7 +22,7 @@ router.get('/', async (req, res) => {
     if (type) filter.type = type;
     console.log('filter: ', filter);
 
-    const users = await User.find(filter);
+    const users = await User.find(filter).populate('products');
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: err.message });

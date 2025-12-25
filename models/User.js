@@ -12,6 +12,10 @@ const userSchema = new mongoose.Schema({
   gst_number: String,
   pan_number: String,
   role: String,
+  products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
+  total_amount: String,
+  paid_amount: String,
+  pending_amount: String,
   created_at: { type: Number, default: moment.utc().valueOf() },
   updated_at: { type: Number, default: moment.utc().valueOf() },
   created_by: String

@@ -343,6 +343,16 @@ router.put('/:id/repair', async (req, res) => {
 
     product.updated_at = moment.utc().valueOf();
     await product.save();
+
+    // Update repairer products if relevant
+    if (repairer) {
+      repairer.products = repairer.products || [];
+      if (!repairer.products.includes(product._id)) {
+        repairer.products.push(product._id);
+        repairer.updated_at = moment.utc().valueOf();
+        await repairer.save();
+      }
+    }
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
