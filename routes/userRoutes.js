@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
 // GET /api/users/:id - get a single user
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.params.id).populate('products');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
