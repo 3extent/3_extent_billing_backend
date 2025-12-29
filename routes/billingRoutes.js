@@ -514,6 +514,15 @@ router.put('/:id', async (req, res) => {
       await product.save();
     }
 
+    // ------- UPDATE CUSTOMER WITH ADVANCE AMOUNT-------------
+
+    const total_advance_amount=Number(existingCustomer.advance_amount) + Number(advance_amount);
+    await User.findByIdAndUpdate(existingCustomer._id, {
+      advance_amount: total_advance_amount.toString(),
+      updated_at: moment.utc().valueOf()
+    },
+      { new: true }
+    );
 
     // -------- RETURN POPULATED BILL --------
     const populatedBilling = await Billing.findById(savedBill._id)
@@ -670,7 +679,7 @@ router.put('/payment/:id', async (req, res) => {
         }
       });
 
-    
+
     res.json(updatedBill);
 
   } catch (err) {
