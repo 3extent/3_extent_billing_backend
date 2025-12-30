@@ -168,7 +168,9 @@ router.get('/', async (req, res) => {
       }
 
       if (Object.keys(repair_range).length > 0) {
-        if (status.split(',').includes("IN_REPAIRING")) {
+        if (!status) {
+          filter.repair_started_at = repair_range;
+        } else if (status.split(',').includes("IN_REPAIRING")) {
           filter.repair_started_at = repair_range;
         } else if (status.split(',').includes("AVAILABLE") && is_repaired) {
           filter.repair_completed_at = repair_range;
