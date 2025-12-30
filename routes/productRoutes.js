@@ -89,7 +89,17 @@ async function createSingleProduct(productData) {
 router.get('/', async (req, res) => {
   try {
     console.log(req.query);
-    const { imei_number, grade, brandName, modelName, status, supplierName, from, to, is_repaired } = req.query;
+    const { imei_number,
+      grade,
+      brandName,
+      modelName,
+      status,
+      supplierName,
+      from,
+      to,
+      is_repaired,
+      repair_from,
+      repair_to } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -137,6 +147,35 @@ router.get('/', async (req, res) => {
       }
 
       console.log("Date range filter:", range);
+    }
+    if (repair_from || repair_to) {
+      const repair_range = {};
+
+      if (repair_from) {
+        const repairFromMS = Number(repair_from);
+        if (!Number.isNaN(repairFromMS)) {
+          const repairFrom = repairFromMS;
+          repair_range.$gte = repairFrom;
+        }
+      }
+
+      if (repair_to) {
+        const repairToMS = Number(repair_to);
+        if (!Number.isNaN(repairToMS)) {
+          const repairTo = repairToMS;
+          repair_range.$lte = repairTo;
+        }
+      }
+
+      if (Object.keys(repair_range).length > 0) {
+        if (filter.status === "IN_REPAIRING" && !is_repaired) {
+          filter.repair_started_at = repair_range;
+        } else if (filter.status === "AVAILABLE" && is_repaired) {
+          filter.repair_completed_at = repair_range;
+        }
+      }
+
+      console.log("Repair Date range filter:", repair_range);
     }
 
     if (brandName) {
