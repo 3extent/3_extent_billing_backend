@@ -168,15 +168,17 @@ router.get('/', async (req, res) => {
       }
 
       if (Object.keys(repair_range).length > 0) {
-        if (filter.status === "IN_REPAIRING" && !is_repaired) {
+        if (status.split(',').includes("IN_REPAIRING")) {
           filter.repair_started_at = repair_range;
-        } else if (filter.status === "AVAILABLE" && is_repaired) {
+        } else if (status.split(',').includes("AVAILABLE") && is_repaired) {
           filter.repair_completed_at = repair_range;
         }
       }
 
       console.log("Repair Date range filter:", repair_range);
     }
+
+    console.log("filter:", filter);
 
     if (brandName) {
       const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
