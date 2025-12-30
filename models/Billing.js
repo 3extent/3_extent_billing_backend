@@ -18,6 +18,10 @@ const billingSchema = new mongoose.Schema({
     {
       method: String,
       amount: String
+    },
+    {
+      method: String,
+      amount: String
     }
   ],//Total amount paid by user
   pending_amount: { type: String, required: true },//Total amount - paid amount

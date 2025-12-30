@@ -516,7 +516,7 @@ router.put('/:id', async (req, res) => {
 
     // ------- UPDATE CUSTOMER WITH ADVANCE AMOUNT-------------
 
-    const total_advance_amount=Number(existingCustomer.advance_amount) + Number(advance_amount);
+    const total_advance_amount = Number(existingCustomer.advance_amount) || 0 + Number(advance_amount);
     await User.findByIdAndUpdate(existingCustomer._id, {
       advance_amount: total_advance_amount.toString(),
       updated_at: moment.utc().valueOf()
@@ -582,6 +582,8 @@ router.put('/payment/:id', async (req, res) => {
       return res.status(404).json({ error: 'Bill not found' });
     }
 
+
+
     /* ---------------------------------------------------
        2️⃣ MERGE EXISTING + NEW PAYMENTS
     --------------------------------------------------- */
@@ -610,6 +612,22 @@ router.put('/payment/:id', async (req, res) => {
       method,
       amount: paidMap[method].toString()
     }));
+
+    const advancePayment = paid_amount
+      .filter(p => p.method === 'advance_amount')
+      .reduce((total, p) => total + Number(p.amount), 0);
+
+    if (advancePayment > 0) {
+      // If the customer has an advance_amount field
+      const updated_advance_amount = Number(bill.customer.advance_amount) - Number(advancePayment);
+      await User.findByIdAndUpdate(bill.customer._id,
+        {
+          advance_amount: updated_advance_amount.toString(),
+          updated_at: moment.utc().valueOf()
+        },
+        { new: true }
+      )
+    }
 
     /* ---------------------------------------------------
        3️⃣ CALCULATE TOTAL & PENDING
