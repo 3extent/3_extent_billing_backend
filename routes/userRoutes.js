@@ -95,4 +95,61 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+
+// PUT /api/users/payment/:id - update a single user for payment
+router.put('/:id', async (req, res) => {
+  try {
+    const { paid_amount, payable_amount, total_part_cost } = req.body;
+    const user = await User.findById(req.params.id).populate({ path: 'products', populate: { path: 'model' } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    let payable = user.payable_amount + payable_amount;
+
+    const paidMap = {};
+
+    // Existing payments from DB
+    user.paid_amount.forEach(p => {
+      paidMap[p.method] = Number(p.amount);
+    });
+
+    // Incoming payments
+    for (const payment of paid_amount) {
+      if (!payment.method || payment.amount == null) {
+        return res.status(400).json({
+          error: 'Each payment must have method and amount'
+        });
+      }
+
+      const amt = Number(payment.amount);
+
+      paidMap[payment.method] =
+        (paidMap[payment.method] || 0) + amt;
+    }
+
+    const updatedPaidAmount = Object.keys(paidMap).map(method => ({
+      method,
+      amount: paidMap[method].toString()
+    }));
+
+    const totalPaid = Object.values(paidMap)
+      .reduce((sum, amt) => sum + amt, 0);
+
+    let pending_amount = payable - totalPaid;
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id,
+      {
+        payable_amount: payable,
+        paid_amount: updatedPaidAmount,
+        pending_amount,
+        total_part_cost
+      }, { new: true });
+
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
