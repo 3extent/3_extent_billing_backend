@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const Product = require('../models/Product');
+const Brand = require('../models/Brand');
+const Model = require('../models/Model');
 
 // Get all users(CUSTOMER, SUPPLIER, ADMIN) with filters
 // GET /api/users?role=CUSTOMER
@@ -23,7 +26,18 @@ router.get('/', async (req, res) => {
     console.log('filter: ', filter);
 
     const users = await User.find(filter).populate('products');
-    res.json(users);
+    let part_cost_of_all_users = users.reduce((sum, user) => sum + (parseInt(user.total_part_cost) || 0), 0);
+    let payable_amount_of_all_users = users.reduce((sum, user) => sum + (parseInt(user.payable_amount) || 0), 0);
+
+    let pending_amount_of_all_users = users.reduce((sum, user) => sum + (parseInt(user.pending_amount) || 0), 0);
+    let paid_amount_of_all_users = (parseInt(payable_amount_of_all_users) || 0) - (parseInt(pending_amount_of_all_users) || 0);
+    res.json({
+      users,
+      part_cost_of_all_users,
+      payable_amount_of_all_users,
+      pending_amount_of_all_users,
+      paid_amount_of_all_users
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -68,18 +82,111 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/users/:id - get a single user
+// GET /api/users/:id - get a single user with filtered products
 router.get('/:id', async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).populate({ path: 'products', populate: { path: 'model' } });
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    const {
+      imei_number,
+      grade,
+      brandName,
+      modelName,
+      status,
+      from,
+      to,
+      is_repaired,
+      repair_from,
+      repair_to
+    } = req.query;
+
+    // Product level filters
+    let productFilters = {};
+
+    // IMEI filter
+    if (imei_number) {
+      const productFromDB = await Product.findOne({ imei_number });
+      if (!productFromDB) {
+        return res.json({ error: `Product with IMEI ${imei_number} not found` });
+      }
+      productFilters._id = productFromDB._id;
     }
+
+    // Grade
+    if (grade) productFilters.grade = { $regex: grade, $options: 'i' };
+
+    // Status
+    if (status) {
+      const statusArray = status.split(",");
+      productFilters.status = {
+        $in: statusArray.filter(s => s !== "REMOVED"),
+        $ne: "REMOVED"
+      };
+    } else {
+      productFilters.status = { $ne: "REMOVED" };
+    }
+
+    // Repaired
+    if (is_repaired !== undefined) productFilters.is_repaired = is_repaired;
+
+    // Created Date Range
+    if (from || to) {
+      let range = {};
+      if (from && !isNaN(Number(from))) range.$gte = Number(from);
+      if (to && !isNaN(Number(to))) range.$lte = Number(to);
+      if (Object.keys(range).length > 0) productFilters.created_at = range;
+    }
+
+    // Repair Date Range
+    if (repair_from || repair_to) {
+      let repairRange = {};
+      if (repair_from && !isNaN(Number(repair_from))) repairRange.$gte = Number(repair_from);
+      if (repair_to && !isNaN(Number(repair_to))) repairRange.$lte = Number(repair_to);
+      if (Object.keys(repairRange).length > 0) {
+        productFilters.repair_started_at = repairRange;
+      }
+    }
+
+    // Brand Name filter -> find matching models
+    if (brandName) {
+      const brandFromDb = await Brand.findOne({
+        name: { $regex: brandName, $options: "i" }
+      });
+
+      // If brand found, filter by its models
+      if (brandFromDb) {
+        const modelsWithBrand = await Model.find({ brand: brandFromDb._id });
+        productFilters.model = { $in: modelsWithBrand.map(m => m._id) };
+      }
+    } else if (modelName) {
+      const modelFromDb = await Model.findOne({
+        name: { $regex: modelName, $options: "i" }
+      });
+      productFilters.model = { $in: [modelFromDb._id] };
+    }
+
+    console.log("Product filters:", productFilters);
+
+    const user = await User.findOne({
+      _id: req.params.id
+    }).populate({
+      path: "products",
+      match: productFilters,
+      populate: {
+        path: "model",
+        populate: { path: "brand" }
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found or no products match filters" });
+    }
+
     res.json(user);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // PUT /api/users/:id - update a single user
 router.put('/:id', async (req, res) => {
@@ -97,14 +204,14 @@ router.put('/:id', async (req, res) => {
 
 
 // PUT /api/users/payment/:id - update a single user for payment
-router.put('/:id', async (req, res) => {
+router.put('/payment/:id', async (req, res) => {
   try {
     const { paid_amount, payable_amount, total_part_cost } = req.body;
     const user = await User.findById(req.params.id).populate({ path: 'products', populate: { path: 'model' } });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    let payable = user.payable_amount + payable_amount;
+    let payable = parseInt(user.payable_amount) || 0 + parseInt(payable_amount) || 0;
 
     const paidMap = {};
 
@@ -135,7 +242,7 @@ router.put('/:id', async (req, res) => {
     const totalPaid = Object.values(paidMap)
       .reduce((sum, amt) => sum + amt, 0);
 
-    let pending_amount = payable - totalPaid;
+    let pending_amount = parseInt(payable) - parseInt(totalPaid);
 
     const updatedUser = await User.findByIdAndUpdate(req.params.id,
       {

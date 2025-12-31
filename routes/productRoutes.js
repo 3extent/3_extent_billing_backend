@@ -217,7 +217,16 @@ router.get('/', async (req, res) => {
     console.log(filter);
 
     const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by').sort({ created_at: -1 });;
-    res.json(products);
+    let part_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
+    let repairer_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.repairer_cost) || 0), 0);
+    let purchase_total_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.purchase_price) || 0), 0);
+
+    res.json({
+      products,
+      part_cost_of_all_products,
+      repairer_cost_of_all_products,
+      purchase_total_of_all_products
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -228,6 +237,15 @@ router.post('/', async (req, res) => {
   try {
     const product = await createSingleProduct(req.body);
     await product.save();
+    console.log('product: ', product)
+    const supplier = await User.findById(product.supplier._id);
+    console.log('supplier: ', supplier)
+
+    supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(product.purchase_price);
+    supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+    supplier.products.push(product._id)
+    console.log('supplier: ', supplier)
+    await supplier.save();
     res.json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -349,7 +367,8 @@ router.delete('/:id', async (req, res) => {
 router.put('/:id/repair', async (req, res) => {
   try {
     const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status } = req.body;
-    const product = await Product.findById(req.params.id);
+    console.log('req.body: ', req.body)
+    const product = await Product.findById(req.params.id).populate('repair_by');
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
@@ -362,8 +381,14 @@ router.put('/:id/repair', async (req, res) => {
       }
     }
 
-    const repairer = await User.findOne({ contact_number: repairer_contact_number });
-    if ((repairer_contact_number) && !repairer) {
+    let repairer;
+    if (status === "IN_REPAIRING") {
+      repairer = await User.findOne({ contact_number: repairer_contact_number });
+    } else if (status === "REPAIRED") {
+      repairer = await User.findById(product.repair_by._id);
+    }
+    console.log('repairer: ', repairer)
+    if (!repairer) {
       return res.status(404).json({ error: 'Repairer not found' });
     }
     product.issue = issue;
@@ -371,6 +396,7 @@ router.put('/:id/repair', async (req, res) => {
       product.status = status;
       product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
+
     } else if (status === 'REPAIRED') {
       product.imei_number = imei_number;
       product.grade = grade;
@@ -386,6 +412,7 @@ router.put('/:id/repair', async (req, res) => {
 
     product.updated_at = moment.utc().valueOf();
     await product.save();
+    console.log('product: ', product)
 
     // Update repairer products if relevant
     if (repairer) {
@@ -393,8 +420,21 @@ router.put('/:id/repair', async (req, res) => {
       if (!repairer.products.includes(product._id)) {
         repairer.products.push(product._id);
         repairer.updated_at = moment.utc().valueOf();
-        await repairer.save();
       }
+      if (status === "REPAIRED") {
+        repairer.total_part_cost = (parseInt(repairer.total_part_cost) || 0) + parseInt(product.part_cost);
+        console.log('product.part_cost: ', product.part_cost)
+        console.log('repairer.total_part_cost: ', repairer.total_part_cost)
+        repairer.payable_amount = (parseInt(repairer.payable_amount) || 0) + parseInt(product.repairer_cost);
+        console.log('product.repairer_cost: ', product.repairer_cost)
+        console.log('repairer.payable_amount: ', repairer.payable_amount)
+        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - parseInt(repairer.pending_amount)
+        console.log('repairer.pending_amount: ', repairer.pending_amount)
+        console.log('repairer.payable_amount: ', repairer.payable_amount)
+        repairer.updated_at = moment.utc().valueOf();
+      }
+      console.log('repairer: ', repairer)
+      await repairer.save();
     }
     res.json(product);
   } catch (err) {
