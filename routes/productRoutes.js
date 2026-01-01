@@ -284,6 +284,18 @@ router.post('/bulk', async (req, res) => {
     }
 
     const result = await Product.insertMany(prepared, { ordered: false });
+
+    console.log('result: ', result)
+    for (singleProduct of result) {
+      const supplier = await User.findById(singleProduct.supplier._id);
+      console.log('supplier: ', supplier)
+
+      supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(singleProduct.purchase_price);
+      supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+      supplier.products.push(singleProduct._id)
+      console.log('supplier: ', supplier)
+      await supplier.save();
+    }
     res.status(200).json({
       message: `Successfully inserted ${result.length} products.`,
       products: result
