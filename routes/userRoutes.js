@@ -180,8 +180,8 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ error: "User not found or no products match filters" });
     }
     let purchase_total_of_all_products = user.products.reduce((sum, product) => sum + (parseInt(product.purchase_price) || 0), 0);
-    let total_parts_cost_used = user.products.reduce((sum, product) => sum + (parseInt(product.cost) || 0), 0);
-    let total_payable_amount = user.products.reduce((sum, product) => sum + (parseInt(product.payable_amount) || 0), 0);
+    let total_parts_cost_used = user.products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
+    let total_payable_amount = user.products.reduce((sum, product) => sum + (parseInt(product.repairer_cost) || 0), 0);
 
 
     res.json({ user, purchase_total_of_all_products, total_parts_cost_used, total_payable_amount });
