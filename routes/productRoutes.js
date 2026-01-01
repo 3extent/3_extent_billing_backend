@@ -89,7 +89,17 @@ async function createSingleProduct(productData) {
 router.get('/', async (req, res) => {
   try {
     console.log(req.query);
-    const { imei_number, grade, brandName, modelName, status, supplierName, from, to } = req.query;
+    const { imei_number,
+      grade,
+      brandName,
+      modelName,
+      status,
+      supplierName,
+      from,
+      to,
+      is_repaired,
+      repair_from,
+      repair_to } = req.query;
     let filter = {};
 
     if (imei_number) {
@@ -98,6 +108,10 @@ router.get('/', async (req, res) => {
 
     if (grade) {
       filter.grade = { $regex: grade, $options: 'i' }; // partial, case-insensitive match
+    }
+
+    if (is_repaired) {
+      filter.is_repaired = is_repaired; // partial, case-insensitive match
     }
 
     if (status) {
@@ -134,6 +148,39 @@ router.get('/', async (req, res) => {
 
       console.log("Date range filter:", range);
     }
+    if (repair_from || repair_to) {
+      const repair_range = {};
+
+      if (repair_from) {
+        const repairFromMS = Number(repair_from);
+        if (!Number.isNaN(repairFromMS)) {
+          const repairFrom = repairFromMS;
+          repair_range.$gte = repairFrom;
+        }
+      }
+
+      if (repair_to) {
+        const repairToMS = Number(repair_to);
+        if (!Number.isNaN(repairToMS)) {
+          const repairTo = repairToMS;
+          repair_range.$lte = repairTo;
+        }
+      }
+
+      if (Object.keys(repair_range).length > 0) {
+        if (!status) {
+          filter.repair_started_at = repair_range;
+        } else if (status.split(',').includes("IN_REPAIRING")) {
+          filter.repair_started_at = repair_range;
+        } else if (status.split(',').includes("AVAILABLE") && is_repaired) {
+          filter.repair_completed_at = repair_range;
+        }
+      }
+
+      console.log("Repair Date range filter:", repair_range);
+    }
+
+    console.log("filter:", filter);
 
     if (brandName) {
       const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
@@ -169,8 +216,17 @@ router.get('/', async (req, res) => {
 
     console.log(filter);
 
-    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').sort({ created_at: -1 });;
-    res.json(products);
+    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by').sort({ created_at: -1 });;
+    let part_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
+    let repairer_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.repairer_cost) || 0), 0);
+    let purchase_total_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.purchase_price) || 0), 0);
+
+    res.json({
+      products,
+      part_cost_of_all_products,
+      repairer_cost_of_all_products,
+      purchase_total_of_all_products
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -181,6 +237,15 @@ router.post('/', async (req, res) => {
   try {
     const product = await createSingleProduct(req.body);
     await product.save();
+    console.log('product: ', product)
+    const supplier = await User.findById(product.supplier._id);
+    console.log('supplier: ', supplier)
+
+    supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(product.purchase_price);
+    supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+    supplier.products.push(product._id)
+    console.log('supplier: ', supplier)
+    await supplier.save();
     res.json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -196,31 +261,38 @@ router.post('/bulk', async (req, res) => {
       return res.status(400).json({ error: 'Products array is required and must not be empty' });
     }
 
-    const submittedProducts = [];
+    const seen = new Set();
+    const uniqueProducts = [];
 
-    // Validate/prepare each product (do NOT insert yet)
     for (let i = 0; i < products.length; i++) {
-      try {
-        const productDoc = await createSingleProduct(products[i], { save: false });
-        submittedProducts.push(productDoc);
-      } catch (err) {
-        // If any product fails → throw immediately → nothing should insert
-        throw new Error(`Product at index ${i} failed: ${err.message}`);
+      const imei = products[i].imei_number;
+      if (seen.has(imei)) {
+        // Duplicate IMEI in input — skip or reject
+        return res.status(400).json({
+          error: `Duplicate imei_number '${imei}' found in input at index ${i}`
+        });
       }
+      seen.add(imei);
+      uniqueProducts.push(products[i]);
     }
 
+    // Now uniqueProducts contains only first occurrence of each IMEI
+    const prepared = [];
+    for (let i = 0; i < uniqueProducts.length; i++) {
+      const doc = await createSingleProduct(uniqueProducts[i], { save: false });
+      prepared.push(doc);
+    }
 
-    await Product.insertMany(submittedProducts, { ordered: false });
-
+    const result = await Product.insertMany(prepared, { ordered: false });
     res.status(200).json({
-      message: `Successfully inserted ${submittedProducts.length} products.`,
-      products: submittedProducts
+      message: `Successfully inserted ${result.length} products.`,
+      products: result
     });
-
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // PUT /api/products/:id - update a single product
 router.put('/:id', async (req, res) => {
@@ -260,7 +332,7 @@ router.put('/:id', async (req, res) => {
 // GET /api/products/:id - get a single product
 router.get('/:id', async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier');
+    const product = await Product.findById(req.params.id).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by');
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
@@ -289,5 +361,79 @@ router.delete('/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// PUT /api/products/:id/repair - update repair details
+router.put('/:id/repair', async (req, res) => {
+  try {
+    const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status } = req.body;
+    console.log('req.body: ', req.body)
+    const product = await Product.findById(req.params.id).populate('model').populate('repair_by');
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+
+    if (imei_number && product.imei_number !== imei_number) {
+      const productFromDB = await Product.findOne({ imei_number });
+      if (productFromDB) {
+        return res.status(404).json({ error: 'IMEI_NUMBER already exists in the system' });
+      }
+    }
+
+    let repairer;
+    if (status === "IN_REPAIRING") {
+      repairer = await User.findOne({ contact_number: repairer_contact_number });
+    } else if (status === "REPAIRED") {
+      repairer = await User.findById(product.repair_by._id);
+    }
+    console.log('repairer: ', repairer)
+    if (!repairer) {
+      return res.status(404).json({ error: 'Repairer not found' });
+    }
+    product.issue = issue;
+    if (status === 'IN_REPAIRING') {
+      product.status = status;
+      product.repair_by = repairer._id;
+      product.repair_started_at = moment.utc().valueOf();
+
+    } else if (status === 'REPAIRED') {
+      product.imei_number = imei_number;
+      product.grade = grade;
+      product.status = "AVAILABLE";
+      product.is_repaired = true;
+      product.sales_price = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
+      product.repairer_cost = repairer_cost;
+      product.part_cost = part_cost;
+      product.purchase_cost_including_expenses = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
+      product.repair_remark = repair_remark;
+      product.repair_completed_at = moment.utc().valueOf();
+    }
+
+    product.updated_at = moment.utc().valueOf();
+    await product.save();
+    console.log('product: ', product)
+
+    // Update repairer products if relevant
+    if (repairer) {
+      repairer.products = repairer.products || [];
+      if (!repairer.products.includes(product._id)) {
+        repairer.products.push(product._id);
+        repairer.updated_at = moment.utc().valueOf();
+      }
+      if (status === "REPAIRED") {
+        repairer.total_part_cost = (parseInt(repairer.total_part_cost) || 0) + parseInt(product.part_cost);
+        repairer.payable_amount = (parseInt(repairer.payable_amount) || 0) + parseInt(product.repairer_cost);
+        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - parseInt(repairer.pending_amount)
+        repairer.updated_at = moment.utc().valueOf();
+      }
+      console.log('repairer: ', repairer)
+      await repairer.save();
+    }
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
 module.exports = router;
