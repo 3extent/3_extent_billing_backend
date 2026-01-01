@@ -368,7 +368,7 @@ router.put('/:id/repair', async (req, res) => {
   try {
     const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status } = req.body;
     console.log('req.body: ', req.body)
-    const product = await Product.findById(req.params.id).populate('repair_by');
+    const product = await Product.findById(req.params.id).populate('model').populate('repair_by');
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
