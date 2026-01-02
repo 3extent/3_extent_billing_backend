@@ -418,6 +418,7 @@ router.put('/:id/repair', async (req, res) => {
       product.part_cost = part_cost;
       product.purchase_cost_including_expenses = parseInt(product.purchase_price) + parseInt(repairer_cost) + parseInt(part_cost);
       product.repair_remark = repair_remark;
+      product.qc_remark = qc_remark;
       product.repair_completed_at = moment.utc().valueOf();
     }
 
