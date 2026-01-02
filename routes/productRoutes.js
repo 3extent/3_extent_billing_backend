@@ -310,7 +310,6 @@ router.post('/bulk', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = req.body;
-
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
@@ -417,7 +416,7 @@ router.put('/:id/repair', async (req, res) => {
       product.sales_price = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
       product.repairer_cost = repairer_cost;
       product.part_cost = part_cost;
-      product.purchase_cost_including_expenses = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
+      product.purchase_cost_including_expenses = parseInt(product.purchase_price) + parseInt(repairer_cost) + parseInt(part_cost);
       product.repair_remark = repair_remark;
       product.repair_completed_at = moment.utc().valueOf();
     }
