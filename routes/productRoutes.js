@@ -436,7 +436,7 @@ router.put('/:id/repair', async (req, res) => {
       if (status === "REPAIRED") {
         repairer.total_part_cost = (parseInt(repairer.total_part_cost) || 0) + parseInt(product.part_cost);
         repairer.payable_amount = (parseInt(repairer.payable_amount) || 0) + parseInt(product.repairer_cost);
-        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - parseInt(repairer.pending_amount)
+        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - (parseInt(repairer.pending_amount) || 0);
         repairer.updated_at = moment.utc().valueOf();
       }
       console.log('repairer: ', repairer)
