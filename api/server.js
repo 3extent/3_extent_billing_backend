@@ -6,41 +6,26 @@ const cors = require('cors');
 dotenv.config();
 const app = express();
 
-// Enable JSON body parsing
 app.use(express.json());
+app.use(cors());
 
-// CORS configuration
-app.use(
-  cors({
-    origin: true, // allow requests from any origin
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
-);
+// Import routes
+app.use('/api/users', require('./../routes/userRoutes'));
+app.use('/api/products', require('./../routes/productRoutes'));
+app.use('/api/brands', require('./../routes/brandRoutes'));
+app.use('/api/models', require('./../routes/modelRoutes'));
+app.use('/api/billings', require('./../routes/billingRoutes'));
 
-// Preflight handler for CORS
-app.options("*", cors());
-
-// Import and mount routes
-app.use('/api/users', require('./routes/userRoutes'));
-app.use('/api/products', require('./routes/productRoutes'));
-app.use('/api/brands', require('./routes/brandRoutes'));
-app.use('/api/models', require('./routes/modelRoutes'));
-app.use('/api/billings', require('./routes/billingRoutes'));
-
-// MongoDB connection (serverless-safe)
+// Database connection helper for serverless environments
 let isConnected = false;
-
 async function connectToDB() {
   if (isConnected) return;
-
   try {
     await mongoose.connect(process.env.MONGO_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      connectTimeoutMS: 30000,
-      serverSelectionTimeoutMS: 30000
+      connectTimeoutMS: 30000,       // Increase connection timeout to 30 seconds
+      serverSelectionTimeoutMS: 30000 // Wait up to 30 seconds for server selection
     });
     isConnected = true;
     console.log('MongoDB connected');
@@ -50,10 +35,16 @@ async function connectToDB() {
   }
 }
 
-// Connect to DB
-connectToDB().catch(err => {
-  console.error("Initial DB connect failed:", err);
-});
+// Setup server
+(async () => {
+  try {
+    await connectToDB();
+    app.listen(process.env.PORT || 5000, () => {
+      console.log(`Server running on port ${process.env.PORT || 5000}`);
+    });
+  } catch (err) {
+    process.exit(1);
+  }
+})();
 
-// Export app for serverless deployment (Vercel / Netlify / AWS Lambda)
 module.exports = app;
