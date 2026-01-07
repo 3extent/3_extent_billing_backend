@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
     if (type) filter.type = type;
     console.log('filter: ', filter);
 
-    const users = await User.find(filter).populate('products');
+    const users = await User.find(filter).populate('products').populate({ path: 'role', populate: { path: 'menu_items' } });
     let part_cost_of_all_users = users.reduce((sum, user) => sum + (parseInt(user.total_part_cost) || 0), 0);
     let payable_amount_of_all_users = users.reduce((sum, user) => sum + (parseInt(user.payable_amount) || 0), 0);
 

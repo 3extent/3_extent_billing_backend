@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema({
   address: String,
   gst_number: String,
   pan_number: String,
-  role: String,
+  role: { type: mongoose.Schema.Types.ObjectId, ref: 'UserRole' },
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   bills: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Billing' }],
   advance_amount: String,
@@ -35,7 +35,7 @@ const userSchema = new mongoose.Schema({
       amount: String
     }
   ],//Total amount paid by user
-  
+
   pending_amount: String,
   created_at: { type: Number, default: moment.utc().valueOf() },
   updated_at: { type: Number, default: moment.utc().valueOf() },

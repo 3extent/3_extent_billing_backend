@@ -9,6 +9,13 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// then import model files so mongoose registers them
+require("./../models/MenuItem");
+require("./../models/UserRole");
+require("./../models/User");
+require("./../models/Product");
+require("./../models/Billing");
+
 // Import routes
 app.use('/api/users', require('./../routes/userRoutes'));
 app.use('/api/products', require('./../routes/productRoutes'));
