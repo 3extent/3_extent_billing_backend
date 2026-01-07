@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
+const Role = require('../models/UserRole');
 
 // Get all users(CUSTOMER, SUPPLIER, ADMIN) with filters
 // GET /api/users?role=CUSTOMER
@@ -21,7 +22,16 @@ router.get('/', async (req, res) => {
     }
 
 
-    if (role) filter.role = role;
+    if (role) {
+      console.log('role: ', role);
+      const existingRole = await Role.findOne({ name: role });
+      console.log('existingRole: ', existingRole);
+      if (!existingRole) {
+        return res.status(400).json({ message: 'User role not found' });
+      }
+      filter.role = existingRole._id
+    }
+
     if (type) filter.type = type;
     console.log('filter: ', filter);
 
@@ -72,6 +82,12 @@ router.post('/', async (req, res) => {
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
+    const existingRole = await Role.findOne({ name: role });
+    if (!existingRole) {
+      return res.status(400).json({ message: 'User role not found' });
+    }
+
+
     const user = new User({ name, contact_number, contact_number2, role, state, address, gst_number, pan_number, firm_name });
     console.log(user);
     await user.save();

@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
 const User = require('../models/User');
+const Role = require('../models/UserRole');
 const moment = require('moment');
 
 // Helper function to validate and find model and supplier
@@ -21,7 +22,9 @@ async function validateModelAndSupplier(model_name, supplier_name, brand) {
     await model.save();
   }
 
-  const supplier = await User.findOne({ name: supplier_name, role: "SUPPLIER" });
+  const supplier_role = await Role.findOne({ name: "SUPPLIER" });
+
+  const supplier = await User.findOne({ name: supplier_name, role: supplier_role._id });
   if (!supplier) {
     throw new Error('Supplier not found');
   }
@@ -206,7 +209,9 @@ router.get('/', async (req, res) => {
     }
 
     if (supplierName) {
-      const supplierFromDb = await User.findOne({ name: { $regex: supplierName, $options: 'i' }, role: "SUPPLIER" })
+      const supplier_role = await Role.findOne({ name: "SUPPLIER" });
+
+      const supplierFromDb = await User.findOne({ name: { $regex: supplierName, $options: 'i' }, role: supplier_role._id })
       if (!supplierFromDb) {
         filter.supplier = null
       } else {
@@ -405,7 +410,7 @@ router.put('/:id/repair', async (req, res) => {
     product.issue = issue;
     if (status === 'IN_REPAIRING') {
       product.status = status;
-      product.accessories=accessories;
+      product.accessories = accessories;
       product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
 
