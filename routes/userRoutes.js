@@ -83,12 +83,13 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'User already exists' });
     }
     const existingRole = await Role.findOne({ name: role });
+    console.log('existingRole: ', existingRole);
     if (!existingRole) {
       return res.status(400).json({ message: 'User role not found' });
     }
 
 
-    const user = new User({ name, contact_number, contact_number2, role, state, address, gst_number, pan_number, firm_name });
+    const user = new User({ name, contact_number, contact_number2, role: existingRole._id, state, address, gst_number, pan_number, firm_name });
     console.log(user);
     await user.save();
     console.log(user);
