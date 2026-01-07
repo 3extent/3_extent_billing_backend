@@ -377,7 +377,7 @@ router.delete('/:id', async (req, res) => {
 // PUT /api/products/:id/repair - update repair details
 router.put('/:id/repair', async (req, res) => {
   try {
-    const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status, qc_remark } = req.body;
+    const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status, qc_remark, accessories } = req.body;
     console.log('req.body: ', req.body)
     const product = await Product.findById(req.params.id).populate('model').populate('repair_by');
 
@@ -405,6 +405,7 @@ router.put('/:id/repair', async (req, res) => {
     product.issue = issue;
     if (status === 'IN_REPAIRING') {
       product.status = status;
+      product.accessories=accessories;
       product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
 
@@ -436,7 +437,7 @@ router.put('/:id/repair', async (req, res) => {
       if (status === "REPAIRED") {
         repairer.total_part_cost = (parseInt(repairer.total_part_cost) || 0) + parseInt(product.part_cost);
         repairer.payable_amount = (parseInt(repairer.payable_amount) || 0) + parseInt(product.repairer_cost);
-        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - parseInt(repairer.pending_amount)
+        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - (parseInt(repairer.pending_amount) || 0);
         repairer.updated_at = moment.utc().valueOf();
       }
       console.log('repairer: ', repairer)
