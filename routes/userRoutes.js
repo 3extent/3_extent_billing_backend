@@ -59,11 +59,11 @@ router.get('/', async (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { contact_number, password } = req.body;
-    const user = await User.findOne({ contact_number });
+    const user = await User.findOne({ contact_number }).populate({ path: 'role', populate: { path: 'menu_items' } });;
     if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
     if (password === user.password) {
-      res.json({ user: { id: user._id, name: user.name, contact_number: user.contact_number } });
+      res.json({ user });
     } else {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
