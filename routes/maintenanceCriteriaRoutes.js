@@ -45,4 +45,26 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// POST /api/maintenance_criteria - create a new maintenance_criteria
+router.post('/', async (req, res) => {
+  try {
+    const { title } = req.body;
+
+    const existingMaintenanceCriteria = await MaintenanceCriteria.findOne({ title });
+    if (existingMaintenanceCriteria) {
+      return res.status(400).json({ error: 'Maintenance Criteria already exists' });
+    }
+
+    const maintenanceCriteria = new MaintenanceCriteria({
+      title,
+      created_at: moment.utc().valueOf(),
+      updated_at: moment.utc().valueOf()
+    });
+    await maintenanceCriteria.save();
+    res.json(maintenanceCriteria);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
