@@ -8,7 +8,14 @@ const moment = require('moment');
 // GET /api/billings
 router.get('/', async (req, res) => {
   try {
-    const { customer_name, contact_number, imei_number, status, from, to } = req.query;
+    const {
+      customer_name,
+      contact_number,
+      imei_number,
+      status,
+      from,
+      to
+    } = req.query;
 
     const filter = {};
 
@@ -35,38 +42,48 @@ router.get('/', async (req, res) => {
       if (!userFromDB) {
         return res.json({ billings: [], totalAmount: 0, totalRemaining: 0, totalProfit: 0, totalProducts: 0 });
       }
-      filter.customer = userFromDB._id;
+
+      filter.customer = {
+        $in: usersFromDB.map(user => user._id)
+      };
     }
 
     // IMEI / product filter
     if (imei_number) {
-      const productFromDB = await Product.findOne({ imei_number });
-      if (!productFromDB) {
-        return res.json({ billings: [], totalAmount: 0, totalRemaining: 0, totalProfit: 0, totalProducts: 0 });
+      const productsFromDB = await Product
+        .find({ imei_number })
+        .select('_id');
+
+      if (!productsFromDB.length) {
+        return res.json({
+          billings: [],
+          totalAmount: 0,
+          totalRemaining: 0,
+          totalProfit: 0,
+          totalProducts: 0
+        });
       }
-      filter.products = productFromDB._id;
+
+      filter.products = {
+        $in: productsFromDB.map(product => product._id)
+      };
     }
-    console.log("filter", filter)
 
-
+    /* ---------------------------------------------------
+       4️⃣ DATE RANGE FILTER
+    --------------------------------------------------- */
     if (from || to) {
       const range = {};
 
-      if (from) {
-        const fromMs = Number(from);
-        if (!Number.isNaN(fromMs)) {
-          const fromDate = fromMs;
-          range.$gte = fromDate;
-        }
+      if (from && !Number.isNaN(Number(from))) {
+        range.$gte = Number(from);
       }
-      if (to) {
-        const toMs = Number(to);
-        if (!Number.isNaN(toMs)) {
-          const toDate = toMs;
-          range.$lte = toDate;
-        }
+
+      if (to && !Number.isNaN(Number(to))) {
+        range.$lte = Number(to);
       }
-      if (Object.keys(range).length > 0) {
+
+      if (Object.keys(range).length) {
         filter.created_at = range;
       }
     }
@@ -75,31 +92,38 @@ router.get('/', async (req, res) => {
       .populate('customer')
       .populate({
         path: 'products',
-        populate: { path: 'model', populate: { path: 'brand' } }
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
       })
       .sort({ created_at: -1 });
 
     // Compute profit for each billing and total
     // Then use reduce to compute total profit
     const totalAmount = billings.reduce(
-      (sum, billing) => sum + (parseInt(billing.payable_amount) ?? 0),
+      (sum, billing) => sum + (Number(billing.payable_amount) || 0),
       0
     );
+
     const totalRemaining = billings.reduce(
-      (sum, billing) => sum + (parseInt(billing.pending_amount) ?? 0),
+      (sum, billing) => sum + (Number(billing.pending_amount) || 0),
       0
     );
+
     const totalProfit = billings.reduce(
-      (sum, billing) => sum + (parseInt(billing.actualProfit) ?? 0),
+      (sum, billing) => sum + (Number(billing.actualProfit) || 0),
       0
     );
 
     const totalProducts = billings.reduce(
-      (sum, billing) => sum + (billing.products.length ?? 0),
+      (sum, billing) => sum + (billing.products?.length || 0),
       0
     );
 
-    // Return both the list and total profit
+    /* ---------------------------------------------------
+       7️⃣ RESPONSE
+    --------------------------------------------------- */
     res.json({
       billings,
       totalAmount,
@@ -108,8 +132,8 @@ router.get('/', async (req, res) => {
       totalProducts
     });
 
-  } catch (err) {
-    console.error('Error in GET /api/billings:', err);
+  } catch (error) {
+    console.error('Error in GET /api/billings:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
