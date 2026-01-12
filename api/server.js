@@ -15,6 +15,8 @@ require("./../models/UserRole");
 require("./../models/User");
 require("./../models/Product");
 require("./../models/Billing");
+require("./../models/MaintenanceActivity");
+require("./../models/MaintenanceCriteria");
 
 // Import routes
 app.use('/api/users', require('./../routes/userRoutes'));
@@ -22,6 +24,8 @@ app.use('/api/products', require('./../routes/productRoutes'));
 app.use('/api/brands', require('./../routes/brandRoutes'));
 app.use('/api/models', require('./../routes/modelRoutes'));
 app.use('/api/billings', require('./../routes/billingRoutes'));
+app.use('/api/billings', require('./../routes/maintenanceActivityRoutes'));
+app.use('/api/billings', require('./../routes/maintenanceCriteriaRoutes'));
 
 // Database connection helper for serverless environments
 let isConnected = false;
