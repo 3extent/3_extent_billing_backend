@@ -24,8 +24,8 @@ app.use('/api/products', require('./../routes/productRoutes'));
 app.use('/api/brands', require('./../routes/brandRoutes'));
 app.use('/api/models', require('./../routes/modelRoutes'));
 app.use('/api/billings', require('./../routes/billingRoutes'));
-app.use('/api/billings', require('./../routes/maintenanceActivityRoutes'));
-app.use('/api/billings', require('./../routes/maintenanceCriteriaRoutes'));
+app.use('/api/maintenance_activity', require('./../routes/maintenanceActivityRoutes'));
+app.use('/api/maintenance_criteria', require('./../routes/maintenanceCriteriaRoutes'));
 
 // Database connection helper for serverless environments
 let isConnected = false;
