@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const moment = require('moment');
 const MaintenanceCriteria = require('../models/MaintenanceCriteria');
+const User = require('../models/User');
 
 // GET /api/maintenance_criteria - get maintenance criteria list
 router.get('/', async (req, res) => {
