@@ -53,7 +53,7 @@ router.post('/', async (req, res) => {
       image,
       paid_by: existingUser._id,
       created_at: created_at || moment.utc().valueOf(),
-      updated_at: updated_at || moment.utc().valueOf()
+      updated_at: moment.utc().valueOf()
     });
     await maintenanceActivity.save();
 
