@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const moment = require('moment');
 
 const maintenanceActivitySchema = new mongoose.Schema({
-  title: { type: mongoose.Schema.Types.ObjectId, ref: 'MaintenanceCriteria' },
+  // title: { type: mongoose.Schema.Types.ObjectId, ref: 'MaintenanceCriteria' },
   description: String,
   amount: String,
   image: String,

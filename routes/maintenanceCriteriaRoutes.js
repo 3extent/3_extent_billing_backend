@@ -24,21 +24,55 @@ router.get('/', async (req, res) => {
 // GET /api/maintenance_criteria/:id - get a single maintenance criteria
 router.get('/:id', async (req, res) => {
   try {
-    const { title, paid_by } = req.query;
+    const { paid_by, from, to } = req.query;
 
     let filter = {};
-    if (title) {
-      filter.title = { $regex: title, $options: 'i' }; // partial, case-insensitive match
-    }
+
     if (paid_by) {
-      const existingUser = await User.findOne({ name });
+      const existingUser = await User.findOne({ name: paid_by });
       if (!existingUser) {
         return res.status(400).json({ error: 'User does not exist' });
       }
 
       filter.paid_by = existingUser._id; // partial, case-insensitive match
     }
-    const maintenanceCriteria = await MaintenanceCriteria.findById(req.params.id).populate('activities');
+
+    if (from || to) {
+      const range = {};
+
+      if (from) {
+        const fromMs = Number(from);
+        if (!Number.isNaN(fromMs)) {
+          const fromDate = fromMs;
+          range.$gte = fromDate;
+        }
+      }
+
+      if (to) {
+        const toMs = Number(to);
+        if (!Number.isNaN(toMs)) {
+          const toDate = toMs;
+          range.$lte = toDate;
+        }
+      }
+
+      if (Object.keys(range).length > 0) {
+        filter.created_at = range;
+      }
+
+      console.log("Date range filter:", range);
+    }
+    const maintenanceCriteria = await MaintenanceCriteria.findById(req.params.id).populate({
+      path: 'activities',
+      match: filter,
+      populate: {
+        path: 'paid_by'
+      }
+    });
+    if (!maintenanceCriteria) {
+      return res.status(404).json({ error: 'Maintenance criteria not found' });
+    }
+
     res.json(maintenanceCriteria);
   } catch (err) {
     res.status(500).json({ error: err.message });
