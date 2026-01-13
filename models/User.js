@@ -37,6 +37,12 @@ const userSchema = new mongoose.Schema({
   ],//Total amount paid by user
 
   pending_amount: String,
+  repair_activities: [{
+    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+    part_name: String,
+    cost: String,
+    repairer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+  }],
   created_at: { type: Number, default: moment.utc().valueOf() },
   updated_at: { type: Number, default: moment.utc().valueOf() },
   created_by: String

@@ -18,7 +18,9 @@ const productSchema = new mongoose.Schema({
 
   //repair details
   issue: { type: String },
-  part_cost: { type: Number },
+  repair_parts: [
+    { shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, part_name: String, cost: String }
+  ],
   repairer_cost: { type: Number },
   repair_remark: { type: String },
   repair_started_at: { type: Number },
