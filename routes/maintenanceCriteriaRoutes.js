@@ -6,14 +6,14 @@ const MaintenanceCriteria = require('../models/MaintenanceCriteria');
 // GET /api/maintenance_criteria - get maintenance criteria list
 router.get('/', async (req, res) => {
   try {
-    // const { title } = req.query;
+    const { title } = req.query;
 
-    // let filter = {};
-    // if (title) {
-    //   filter.title = { $regex: title, $options: 'i' }; // partial, case-insensitive match
-    // }
+    let filter = {};
+    if (title) {
+      filter.title = { $regex: title, $options: 'i' }; // partial, case-insensitive match
+    }
 
-    const maintenanceCriteriaList = await MaintenanceCriteria.find().populate('activities');
+    const maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate('activities');
     res.json(maintenanceCriteriaList);
   } catch (err) {
     res.status(500).json({ error: err.message });
