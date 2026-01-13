@@ -191,7 +191,20 @@ router.get('/:id', async (req, res) => {
         path: "model",
         populate: { path: "brand" }
       }
-    });
+    }).populate({
+      path: 'repair_activities',
+      populate: [
+        {
+          path: 'product',
+          populate: {
+            path: 'model' // optional
+          }
+        },
+        {
+          path: 'repairer',
+        }
+      ]
+    });;
 
     if (!user) {
       return res.status(404).json({ error: "User not found or no products match filters" });
