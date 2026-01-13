@@ -60,6 +60,7 @@ router.post('/', async (req, res) => {
     console.log('existingMaintenanceCriteria: ', existingMaintenanceCriteria);
 
     let activities = existingMaintenanceCriteria.activities.push(maintenanceActivity._id)
+    console.log('activities: ', activities);
     //Activity added in the criteria
     const maintenanceCriteria = await MaintenanceCriteria.findByIdAndUpdate(existingMaintenanceCriteria._id,
       {
