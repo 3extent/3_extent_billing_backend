@@ -60,7 +60,7 @@ router.post('/', async (req, res) => {
     //Activity added in the criteria
     const maintenanceCriteria = await MaintenanceCriteria.findByIdAndUpdate(existingMaintenanceCriteria._id,
       {
-        activities: existingMaintenanceCriteria.activities.push(maintenanceActivity),
+        activities: existingMaintenanceCriteria.activities.push(maintenanceActivity._id),
         updated_at: moment.utc().valueOf()
       },
       { new: true }
