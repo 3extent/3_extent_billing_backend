@@ -40,7 +40,7 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Maintenance criteria does not exist' });
     }
 
-    const existingUser = await User.findOne({ paid_by });
+    const existingUser = await User.findOne({ name: paid_by });
     if (!existingUser) {
       return res.status(400).json({ error: 'User does not exist' });
     }
