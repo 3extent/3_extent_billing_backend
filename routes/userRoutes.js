@@ -193,6 +193,7 @@ router.get('/:id', async (req, res) => {
       }
     }).populate({
       path: 'repair_activities',
+      match: productFilters,
       populate: [
         {
           path: 'product',
