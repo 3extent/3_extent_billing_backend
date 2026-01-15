@@ -542,9 +542,8 @@ router.put('/:id/repair', async (req, res) => {
               created_at: moment.utc().valueOf()
             }
           },
-          $inc: {
-            total_part_sales: singleEle.cost
-          }
+
+          payable_amount: (Number(payable_amount) || 0) + singleEle.cost
         }
       );
     }
