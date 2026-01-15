@@ -214,10 +214,10 @@ router.get('/:id', async (req, res) => {
     let total_parts_cost_used = user.products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
     let total_payable_amount = user.products.reduce((sum, product) => sum + (parseInt(product.repairer_cost) || 0), 0);
 
-    let total_payable_amount_of_parts=user.repair_activities.reduce((sum, activity) => sum + (parseInt(activity.cost) || 0), 0);
+    let total_payable_amount_of_parts = user.repair_activities.reduce((sum, activity) => sum + (parseInt(activity.cost) || 0), 0);
 
 
-    res.json({ user, purchase_total_of_all_products, total_parts_cost_used, total_payable_amount });
+    res.json({ user, purchase_total_of_all_products, total_parts_cost_used, total_payable_amount, total_payable_amount_of_parts });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
