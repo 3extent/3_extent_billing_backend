@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   // For Repairer - payable_amount=Labor charge - system needs to pay
   // For Supplier - payable_amount=Total cost of all stocks - system needs to pay
   // For Customer - payable_amount=Totat bills - system needs to receive payment
-  payable_amount: String,
+  payable_amount: Number,
   paid_amount: [
     {
       method: String,
