@@ -546,7 +546,8 @@ router.put('/:id/repair', async (req, res) => {
             }
           },
           $inc: {
-            payable_amount: singleEle.cost
+            payable_amount: singleEle.cost,
+            pending_amount: singleEle.cost
           }
         }
       );
