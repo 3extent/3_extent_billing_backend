@@ -70,7 +70,11 @@ router.post('/', async (req, res) => {
     ).populate('activities');
 
     console.log('maintenanceCriteria: ', maintenanceCriteria);
-
+    let total_expenses_of_maintenance_criteria = activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
+    res.json({
+      maintenanceCriteria,
+      total_expenses_of_maintenance_criteria 
+    });
     res.json(maintenanceCriteria);
   } catch (err) {
     res.status(500).json({ error: err.message });
