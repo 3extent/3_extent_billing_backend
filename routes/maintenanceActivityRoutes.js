@@ -35,7 +35,7 @@ router.post('/', async (req, res) => {
       paid_by,
       created_at } = req.body;
 
-    const existingMaintenanceCriteria = await MaintenanceCriteria.findOne({ title });
+    const existingMaintenanceCriteria = await MaintenanceCriteria.findOne({ title }).populate('activities');
     if (!existingMaintenanceCriteria) {
       return res.status(400).json({ error: 'Maintenance criteria does not exist' });
     }
@@ -58,7 +58,7 @@ router.post('/', async (req, res) => {
     await maintenanceActivity.save();
 
     let activities = existingMaintenanceCriteria["activities"];
-    activities.push(maintenanceActivity._id)
+    activities.push(maintenanceActivity)
     console.log('activities: ', activities);
     //Activity added in the criteria
     let total_expenses_of_maintenance_criteria = activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
