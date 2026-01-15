@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema({
     }
   ],//Total amount paid by user
 
-  pending_amount: v,
+  pending_amount: Number,
   repair_activities: [{
     product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
     part_name: String,

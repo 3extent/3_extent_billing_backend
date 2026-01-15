@@ -15,6 +15,7 @@ router.get('/', async (req, res) => {
     }
 
     const maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate('activities');
+    console.log('maintenanceCriteriaList: ', maintenanceCriteriaList)
     res.json(maintenanceCriteriaList);
   } catch (err) {
     res.status(500).json({ error: err.message });
