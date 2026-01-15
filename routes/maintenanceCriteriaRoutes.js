@@ -16,7 +16,9 @@ router.get('/', async (req, res) => {
 
     const maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate('activities');
     console.log('maintenanceCriteriaList: ', maintenanceCriteriaList)
-    res.json(maintenanceCriteriaList);
+    let total_expenses_of_maintenance = maintenanceCriteriaList.reduce((sum, criteria) => sum + (parseInt(criteria.total_expenses_of_maintenance_criteria) || 0), 0);
+
+    res.json({ maintenanceCriteriaList, total_expenses_of_maintenance });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
