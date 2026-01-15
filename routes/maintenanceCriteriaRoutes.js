@@ -10,6 +10,7 @@ router.get('/', async (req, res) => {
     const { title, from, to } = req.query;
 
     let filter = {};
+    let activity_filter={};
     if (title) {
       filter.title = { $regex: title, $options: 'i' }; // partial, case-insensitive match
     }
@@ -33,14 +34,14 @@ router.get('/', async (req, res) => {
       }
 
       if (Object.keys(range).length > 0) {
-        filter.created_at = range;
+        activity_filter.created_at = range;
       }
 
       console.log("Date range filter:", range);
     }
     const maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate({
       path: 'activities',
-      match: filter,
+      match: activity_filter,
       populate: {
         path: 'paid_by'
       }
