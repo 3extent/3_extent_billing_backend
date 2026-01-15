@@ -70,11 +70,17 @@ router.get('/:id', async (req, res) => {
         path: 'paid_by'
       }
     });
+    console.log('maintenanceCriteria: ', maintenanceCriteria)
+
     if (!maintenanceCriteria) {
       return res.status(404).json({ error: 'Maintenance criteria not found' });
     }
-
-    res.json(maintenanceCriteria);
+    let total_expenses_of_maintenance_criteria = maintenanceCriteria.activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
+    console.log('total_expenses_of_maintenance_criteria: ', total_expenses_of_maintenance_criteria)
+    res.json({
+      maintenanceCriteria,
+      total_expenses_of_maintenance_criteria
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
