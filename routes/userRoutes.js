@@ -125,6 +125,7 @@ router.get('/:id', async (req, res) => {
         return res.json({ error: `Product with IMEI ${imei_number} not found` });
       }
       productFilters._id = productFromDB._id;
+
     }
 
     // Grade
@@ -193,19 +194,20 @@ router.get('/:id', async (req, res) => {
       }
     }).populate({
       path: 'repair_activities',
-      match: productFilters,
       populate: [
         {
           path: 'product',
+          match: productFilters,
           populate: {
             path: 'model' // optional
           }
         },
         {
           path: 'repairer',
+          match: productFilters
         }
       ]
-    });;
+    });
 
     if (!user) {
       return res.status(404).json({ error: "User not found or no products match filters" });
