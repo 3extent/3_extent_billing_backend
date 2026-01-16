@@ -50,10 +50,12 @@ router.get('/', async (req, res) => {
 
     let total_expenses_of_maintenance;
     maintenanceCriteriaList.map((maintenanceCriteria) => {
-      total_expenses_of_maintenance = maintenanceCriteria.activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
-    }).
+      console.log('maintenanceCriteria: ', maintenanceCriteria)
+      total_expenses_of_maintenance = maintenanceCriteria.activities?.reduce((sum, activity) => sum + (parseInt(activity?.amount) || 0), 0);
+    });
+    console.log('total_expenses_of_maintenance: ', total_expenses_of_maintenance)
 
-      res.json({ maintenanceCriteriaList, total_expenses_of_maintenance });
+    res.json({ maintenanceCriteriaList, total_expenses_of_maintenance });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -113,7 +115,8 @@ router.get('/:id', async (req, res) => {
     if (!maintenanceCriteria) {
       return res.status(404).json({ error: 'Maintenance criteria not found' });
     }
-    let total_expenses_of_maintenance_criteria = maintenanceCriteria.activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
+    console.log('maintenanceCriteria: ', maintenanceCriteria)
+    let total_expenses_of_maintenance_criteria = maintenanceCriteria.activities?.reduce((sum, activity) => sum + (parseInt(activity?.amount) || 0), 0);
     console.log('total_expenses_of_maintenance_criteria: ', total_expenses_of_maintenance_criteria)
     res.json({
       maintenanceCriteria,
