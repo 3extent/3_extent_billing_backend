@@ -61,11 +61,11 @@ router.post('/', async (req, res) => {
     activities.push(maintenanceActivity)
     console.log('activities: ', activities);
     //Activity added in the criteria
-    let total_expenses_of_maintenance_criteria = activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
+    // let total_expenses_of_maintenance_criteria = activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
     const maintenanceCriteria = await MaintenanceCriteria.findByIdAndUpdate(existingMaintenanceCriteria._id,
       {
         activities,
-        total_expenses_of_maintenance_criteria,
+        // total_expenses_of_maintenance_criteria,
         updated_at: moment.utc().valueOf()
       },
       { new: true }

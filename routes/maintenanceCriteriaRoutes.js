@@ -10,7 +10,7 @@ router.get('/', async (req, res) => {
     const { title, from, to } = req.query;
 
     let filter = {};
-    let activity_filter={};
+    let activity_filter = {};
     if (title) {
       filter.title = { $regex: title, $options: 'i' }; // partial, case-insensitive match
     }
@@ -47,9 +47,13 @@ router.get('/', async (req, res) => {
       }
     });
     console.log('maintenanceCriteriaList: ', maintenanceCriteriaList)
-    let total_expenses_of_maintenance = maintenanceCriteriaList.reduce((sum, criteria) => sum + (parseInt(criteria.total_expenses_of_maintenance_criteria) || 0), 0);
 
-    res.json({ maintenanceCriteriaList, total_expenses_of_maintenance });
+    let total_expenses_of_maintenance;
+    maintenanceCriteriaList.map((maintenanceCriteria) => {
+      total_expenses_of_maintenance = maintenanceCriteria.activities.reduce((sum, activity) => sum + (parseInt(activity.amount) || 0), 0);
+    }).
+
+      res.json({ maintenanceCriteriaList, total_expenses_of_maintenance });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
