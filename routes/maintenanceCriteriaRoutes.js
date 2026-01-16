@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
 
       console.log("Date range filter:", range);
     }
-    const maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate({
+    let maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate({
       path: 'activities',
       match: activity_filter,
       populate: {
