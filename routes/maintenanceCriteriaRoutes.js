@@ -49,9 +49,13 @@ router.get('/', async (req, res) => {
     console.log('maintenanceCriteriaList: ', maintenanceCriteriaList)
 
     let total_expenses_of_maintenance;
-    maintenanceCriteriaList.map((maintenanceCriteria) => {
+    maintenanceCriteriaList = maintenanceCriteriaList.map((maintenanceCriteria) => {
       console.log('maintenanceCriteria: ', maintenanceCriteria)
       total_expenses_of_maintenance = maintenanceCriteria.activities?.reduce((sum, activity) => sum + (parseInt(activity?.amount) || 0), 0);
+      console.log('total_expenses_of_maintenance: ', total_expenses_of_maintenance);
+      maintenanceCriteria["total_expenses_of_maintenance"] = total_expenses_of_maintenance
+      console.log('maintenanceCriteria: ', maintenanceCriteria)
+      return maintenanceCriteria;
     });
     console.log('total_expenses_of_maintenance: ', total_expenses_of_maintenance)
 
