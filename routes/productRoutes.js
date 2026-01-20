@@ -403,6 +403,7 @@ router.put('/:id/repair', async (req, res) => {
       repair_parts = []
     } = req.body;
 
+    console.log('repair_parts: ', repair_parts);
     const product = await Product
       .findById(req.params.id)
       .populate('model')
@@ -525,7 +526,9 @@ router.put('/:id/repair', async (req, res) => {
     }
 
     if (status === "REPAIRED") {
-      repairer.total_part_cost += totalCost;
+      console.log('totalCost: ', totalCost);
+      console.log('repairer.total_part_cost: ', repairer.total_part_cost);
+      repairer.total_part_cost = (repairer.total_part_cost || 0) + totalCost;
 
       repairer.payable_amount =
         (Number(repairer.payable_amount) || 0) +
