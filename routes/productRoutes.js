@@ -245,9 +245,12 @@ router.post('/', async (req, res) => {
     console.log('product: ', product)
     const supplier = await User.findById(product.supplier._id);
     console.log('supplier: ', supplier)
-
+    const paidAmounts = supplier.paid_amount.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    )
     supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(product.purchase_price);
-    supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+    supplier.pending_amount = supplier.payable_amount - paidAmounts
     supplier.products.push(product._id)
     console.log('supplier: ', supplier)
     await supplier.save();
@@ -295,8 +298,13 @@ router.post('/bulk', async (req, res) => {
       const supplier = await User.findById(singleProduct.supplier._id);
       console.log('supplier: ', supplier)
 
+      const paidAmounts = supplier.paid_amount.reduce(
+        (sum, payment) => sum + payment.amount,
+        0
+      )
+
       supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(singleProduct.purchase_price);
-      supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+      supplier.pending_amount = supplier.payable_amount - paidAmounts
       supplier.products.push(singleProduct._id)
       console.log('supplier: ', supplier)
       await supplier.save();
@@ -523,9 +531,14 @@ router.put('/:id/repair', async (req, res) => {
         (Number(repairer.payable_amount) || 0) +
         Number(repairer_cost);
 
+      const paidAmounts = repairer.paid_amount.reduce(
+        (sum, payment) => sum + payment.amount,
+        0
+      )
+
       repairer.pending_amount =
-        (Number(repairer.payable_amount) || 0) -
-        (Number(repairer.paid_amount) || 0);
+        repairer.payable_amount -
+        paidAmounts
     }
 
     repairer.updated_at = moment.utc().valueOf();
