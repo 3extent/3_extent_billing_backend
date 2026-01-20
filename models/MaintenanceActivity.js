@@ -4,7 +4,7 @@ const moment = require('moment');
 const maintenanceActivitySchema = new mongoose.Schema({
   // title: { type: mongoose.Schema.Types.ObjectId, ref: 'MaintenanceCriteria' },
   description: String,
-  amount: String,
+  amount: Number,
   image: String,
   paid_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   created_at: { type: Number, default: moment.utc().valueOf() },

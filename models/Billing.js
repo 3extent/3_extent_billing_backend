@@ -5,34 +5,34 @@ const billingSchema = new mongoose.Schema({
   invoice_number: { type: Number, unique: true },
   customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   products: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
-  payable_amount: { type: String, required: true },//Total amount
+  payable_amount: { type: Number, required: true },//Total amount
   paid_amount: [
     {
       method: String,
-      amount: String
+      amount: Number
     },
     {
       method: String,
-      amount: String
+      amount: Number
     },
     {
       method: String,
-      amount: String
+      amount: Number
     },
     {
       method: String,
-      amount: String
+      amount: Number
     }
   ],//Total amount paid by user
-  pending_amount: { type: String, required: true },//Total amount - paid amount
-  advance_amount: { type: String, default: 0 },//Advance amount
+  pending_amount: { type: Number, required: true },//Total amount - paid amount
+  advance_amount: { type: Number, default: 0 },//Advance amount
 
-  net_total: { type: String, required: true },//Show on Bill
-  c_gst: { type: String },//Show on Bill
-  s_gst: { type: String },//Show on Bill
-  profitToShow: { type: String },//Show on Bill
+  net_total: { type: Number, required: true },//Show on Bill
+  c_gst: { type: Number },//Show on Bill
+  s_gst: { type: Number },//Show on Bill
+  profitToShow: { type: Number },//Show on Bill
 
-  actualProfit: { type: String },//Actual profit
+  actualProfit: { type: Number },//Actual profit
 
   status: { type: String, required: true },
   created_at: { type: Number, default: moment.utc().valueOf() },
