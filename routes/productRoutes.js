@@ -437,13 +437,16 @@ router.put('/:id/repair', async (req, res) => {
       const shopNames = [...new Set(
         repair_parts.map(p => p.shop_name?.trim()).filter(Boolean)
       )];
+      console.log('shopNames: ', shopNames)
 
       const shops = await User.find({
         name: { $in: shopNames }
       }).select('_id name');
+      console.log('shops: ', shops)
 
       if (shops.length !== shopNames.length) {
         const foundNames = shops.map(s => s.name);
+        console.log('foundNames: ', foundNames)
         const missingShops = shopNames.filter(
           name => !foundNames.includes(name)
         );
@@ -543,7 +546,8 @@ router.put('/:id/repair', async (req, res) => {
             }
           },
           $inc: {
-            total_part_sales: singleEle.cost
+            payable_amount: singleEle.cost,
+            pending_amount: singleEle.cost
           }
         }
       );

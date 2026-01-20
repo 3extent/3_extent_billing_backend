@@ -7,15 +7,60 @@ const User = require('../models/User');
 // GET /api/maintenance_criteria - get maintenance criteria list
 router.get('/', async (req, res) => {
   try {
-    const { title } = req.query;
+    const { title, from, to } = req.query;
 
     let filter = {};
+    let activity_filter = {};
     if (title) {
       filter.title = { $regex: title, $options: 'i' }; // partial, case-insensitive match
     }
+    if (from || to) {
+      const range = {};
 
-    const maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate('activities');
-    res.json(maintenanceCriteriaList);
+      if (from) {
+        const fromMs = Number(from);
+        if (!Number.isNaN(fromMs)) {
+          const fromDate = fromMs;
+          range.$gte = fromDate;
+        }
+      }
+
+      if (to) {
+        const toMs = Number(to);
+        if (!Number.isNaN(toMs)) {
+          const toDate = toMs;
+          range.$lte = toDate;
+        }
+      }
+
+      if (Object.keys(range).length > 0) {
+        activity_filter.created_at = range;
+      }
+
+      console.log("Date range filter:", range);
+    }
+    let maintenanceCriteriaList = await MaintenanceCriteria.find(filter).populate({
+      path: 'activities',
+      match: activity_filter,
+      populate: {
+        path: 'paid_by'
+      }
+    });
+    console.log('maintenanceCriteriaList: ', maintenanceCriteriaList)
+
+    maintenanceCriteriaList = maintenanceCriteriaList.map((maintenanceCriteria) => {
+      maintenanceCriteria = maintenanceCriteria.toObject();
+      let total_expenses_of_maintenance_criteria = maintenanceCriteria.activities?.reduce((sum, activity) => sum + (parseInt(activity?.amount) || 0), 0);
+      maintenanceCriteria["total_expenses_of_maintenance_criteria"] = total_expenses_of_maintenance_criteria;
+      return maintenanceCriteria;
+    });
+    const total_expenses_of_maintenance = maintenanceCriteriaList.reduce((sum, maintenance) => sum + (parseInt(maintenance?.total_expenses_of_maintenance_criteria) || 0), 0)
+
+
+    console.log('maintenanceCriteriaList: ', maintenanceCriteriaList)
+    console.log('total_expenses_of_maintenance: ', total_expenses_of_maintenance)
+
+    res.json({ maintenanceCriteriaList, total_expenses_of_maintenance });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -70,11 +115,18 @@ router.get('/:id', async (req, res) => {
         path: 'paid_by'
       }
     });
+    console.log('maintenanceCriteria: ', maintenanceCriteria)
+
     if (!maintenanceCriteria) {
       return res.status(404).json({ error: 'Maintenance criteria not found' });
     }
-
-    res.json(maintenanceCriteria);
+    console.log('maintenanceCriteria: ', maintenanceCriteria)
+    let total_expenses_of_maintenance_criteria = maintenanceCriteria.activities?.reduce((sum, activity) => sum + (parseInt(activity?.amount) || 0), 0);
+    console.log('total_expenses_of_maintenance_criteria: ', total_expenses_of_maintenance_criteria)
+    res.json({
+      maintenanceCriteria,
+      total_expenses_of_maintenance_criteria
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
