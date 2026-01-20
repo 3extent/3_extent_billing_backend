@@ -525,7 +525,7 @@ router.put('/:id/repair', async (req, res) => {
     }
 
     if (status === "REPAIRED") {
-      repairer.total_part_cost = totalCost;
+      repairer.total_part_cost += totalCost;
 
       repairer.payable_amount =
         (Number(repairer.payable_amount) || 0) +
