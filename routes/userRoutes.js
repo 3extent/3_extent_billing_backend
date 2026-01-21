@@ -250,17 +250,25 @@ router.get('/:id', async (req, res) => {
     );
 
     console.log('user: ', user);
-
-    const total_payable_amount_of_parts = user.products.reduce(
-      (productAcc, product) => {
-        const productPartsTotal = (product.repair_parts || []).reduce(
-          (partsAcc, part) => partsAcc + (part.cost || 0),
-          0
-        );
-        return productAcc + productPartsTotal;
-      },
-      0
-    );
+    let total_payable_amount_of_parts = 0;
+    if (user.repair_activities) {
+      total_payable_amount_of_parts = user.repair_activities.reduce(
+        (sum, activity) => sum + (Number(activity.cost) || 0),
+        0
+      );
+    }
+    else {
+      total_payable_amount_of_parts = user.products.reduce(
+        (productAcc, product) => {
+          const productPartsTotal = (product.repair_parts || []).reduce(
+            (partsAcc, part) => partsAcc + (part.cost || 0),
+            0
+          );
+          return productAcc + productPartsTotal;
+        },
+        0
+      );
+    }
 
     /* ---------------------------------------------------
        RESPONSE
