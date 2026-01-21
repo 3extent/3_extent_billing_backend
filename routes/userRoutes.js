@@ -251,7 +251,7 @@ router.get('/:id', async (req, res) => {
 
     console.log('user: ', user);
     let total_payable_amount_of_parts = 0;
-    if (user.repair_activities) {
+    if (user.repair_activities.length !== 0) {
       total_payable_amount_of_parts = user.repair_activities.reduce(
         (sum, activity) => sum + (Number(activity.cost) || 0),
         0
