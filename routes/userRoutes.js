@@ -249,8 +249,16 @@ router.get('/:id', async (req, res) => {
       0
     );
 
-    const total_payable_amount_of_parts = user.repair_activities.reduce(
-      (sum, activity) => sum + (Number(activity.cost) || 0),
+    console.log('user: ', user);
+
+    const total_payable_amount_of_parts = user.products.reduce(
+      (productAcc, product) => {
+        const productPartsTotal = (product.repair_parts || []).reduce(
+          (partsAcc, part) => partsAcc + (part.cost || 0),
+          0
+        );
+        return productAcc + productPartsTotal;
+      },
       0
     );
 
