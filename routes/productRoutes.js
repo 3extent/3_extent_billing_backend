@@ -4,6 +4,7 @@ const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
 const User = require('../models/User');
+const Role = require('../models/UserRole');
 const moment = require('moment');
 
 // Helper function to validate and find model and supplier
@@ -21,7 +22,9 @@ async function validateModelAndSupplier(model_name, supplier_name, brand) {
     await model.save();
   }
 
-  const supplier = await User.findOne({ name: supplier_name, role: "SUPPLIER" });
+  const supplier_role = await Role.findOne({ name: "SUPPLIER" });
+
+  const supplier = await User.findOne({ name: supplier_name, role: supplier_role._id });
   if (!supplier) {
     throw new Error('Supplier not found');
   }
@@ -206,7 +209,9 @@ router.get('/', async (req, res) => {
     }
 
     if (supplierName) {
-      const supplierFromDb = await User.findOne({ name: { $regex: supplierName, $options: 'i' }, role: "SUPPLIER" })
+      const supplier_role = await Role.findOne({ name: "SUPPLIER" });
+
+      const supplierFromDb = await User.findOne({ name: { $regex: supplierName, $options: 'i' }, role: supplier_role._id })
       if (!supplierFromDb) {
         filter.supplier = null
       } else {
@@ -240,9 +245,12 @@ router.post('/', async (req, res) => {
     console.log('product: ', product)
     const supplier = await User.findById(product.supplier._id);
     console.log('supplier: ', supplier)
-
+    const paidAmounts = supplier.paid_amount.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    )
     supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(product.purchase_price);
-    supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+    supplier.pending_amount = supplier.payable_amount - paidAmounts
     supplier.products.push(product._id)
     console.log('supplier: ', supplier)
     await supplier.save();
@@ -290,8 +298,13 @@ router.post('/bulk', async (req, res) => {
       const supplier = await User.findById(singleProduct.supplier._id);
       console.log('supplier: ', supplier)
 
+      const paidAmounts = supplier.paid_amount.reduce(
+        (sum, payment) => sum + payment.amount,
+        0
+      )
+
       supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(singleProduct.purchase_price);
-      supplier.pending_amount = supplier.payable_amount - (parseInt(supplier.pending_amount) || 0)
+      supplier.pending_amount = supplier.payable_amount - paidAmounts
       supplier.products.push(singleProduct._id)
       console.log('supplier: ', supplier)
       await supplier.save();
@@ -377,74 +390,189 @@ router.delete('/:id', async (req, res) => {
 // PUT /api/products/:id/repair - update repair details
 router.put('/:id/repair', async (req, res) => {
   try {
-    const { issue, imei_number, grade, repairer_cost, part_cost, repair_remark, repairer_contact_number, status, qc_remark, accessories } = req.body;
-    console.log('req.body: ', req.body)
-    const product = await Product.findById(req.params.id).populate('model').populate('repair_by');
+    const {
+      issue,
+      imei_number,
+      grade,
+      repairer_cost = 0,
+      repair_remark,
+      repairer_contact_number,
+      status,
+      qc_remark,
+      accessories = [],
+      repair_parts = []
+    } = req.body;
+
+    console.log('repair_parts: ', repair_parts);
+    const product = await Product
+      .findById(req.params.id)
+      .populate('model')
+      .populate('repair_by');
+
+    let totalCost = 0;
 
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
+    /* ---------------- IMEI CHECK (FIXED) ---------------- */
     if (imei_number && product.imei_number !== imei_number) {
-      const productFromDB = await Product.findOne({ imei_number });
+      const productFromDB = await Product.findOne({
+        imei_number,
+        _id: { $ne: product._id }
+      });
+
       if (productFromDB) {
-        return res.status(404).json({ error: 'IMEI_NUMBER already exists in the system' });
+        return res.status(400).json({ error: 'IMEI_NUMBER already exists in the system' });
       }
     }
 
+    /* ---------------- FIND REPAIRER ---------------- */
     let repairer;
     if (status === "IN_REPAIRING") {
       repairer = await User.findOne({ contact_number: repairer_contact_number });
     } else if (status === "REPAIRED") {
-      repairer = await User.findById(product.repair_by._id);
+      repairer = product.repair_by;
     }
-    console.log('repairer: ', repairer)
+
     if (!repairer) {
       return res.status(404).json({ error: 'Repairer not found' });
     }
+
+    /* ---------------- SHOP VALIDATION ---------------- */
+    let rebuiltRepairParts = [];
+
+    if (repair_parts.length) {
+      const shopNames = [...new Set(
+        repair_parts.map(p => p.shop_name?.trim()).filter(Boolean)
+      )];
+      console.log('shopNames: ', shopNames)
+
+      const shops = await User.find({
+        name: { $in: shopNames }
+      }).select('_id name');
+      console.log('shops: ', shops)
+
+      if (shops.length !== shopNames.length) {
+        const foundNames = shops.map(s => s.name);
+        console.log('foundNames: ', foundNames)
+        const missingShops = shopNames.filter(
+          name => !foundNames.includes(name)
+        );
+
+        return res.status(400).json({
+          error: 'Some shop names do not exist',
+          missingShops
+        });
+      }
+
+      const shopMap = {};
+      shops.forEach(shop => {
+        shopMap[shop.name] = shop._id;
+      });
+
+      rebuiltRepairParts = repair_parts.map(part => {
+        const cost = Number(part.cost) || 0;
+        totalCost += cost;
+
+        return {
+          shop: shopMap[part.shop_name.trim()],
+          part_name: part.part_name,
+          cost
+        };
+      });
+    }
+
+    /* ---------------- UPDATE PRODUCT ---------------- */
     product.issue = issue;
+
     if (status === 'IN_REPAIRING') {
       product.status = status;
-      product.accessories=accessories;
+      product.accessories = accessories;
       product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
+    }
 
-    } else if (status === 'REPAIRED') {
+    if (status === 'REPAIRED') {
       product.imei_number = imei_number;
       product.grade = grade;
       product.status = "AVAILABLE";
       product.is_repaired = true;
-      product.sales_price = parseInt(product.sales_price) + parseInt(repairer_cost) + parseInt(part_cost);
-      product.repairer_cost = repairer_cost;
-      product.part_cost = part_cost;
-      product.purchase_cost_including_expenses = parseInt(product.purchase_price) + parseInt(repairer_cost) + parseInt(part_cost);
+      product.repairer_cost = Number(repairer_cost);
       product.repair_remark = repair_remark;
       product.qc_remark = qc_remark;
+      product.repair_parts = rebuiltRepairParts;
       product.repair_completed_at = moment.utc().valueOf();
+
+      product.sales_price =
+        (Number(product.sales_price) || 0) +
+        Number(repairer_cost) +
+        totalCost;
+
+      product.purchase_cost_including_expenses =
+        (Number(product.purchase_cost_including_expenses) || Number(product.purchase_price)) +
+        Number(repairer_cost) +
+        totalCost;
     }
 
     product.updated_at = moment.utc().valueOf();
     await product.save();
-    console.log('product: ', product)
 
-    // Update repairer products if relevant
-    if (repairer) {
-      repairer.products = repairer.products || [];
-      if (!repairer.products.includes(product._id)) {
-        repairer.products.push(product._id);
-        repairer.updated_at = moment.utc().valueOf();
-      }
-      if (status === "REPAIRED") {
-        repairer.total_part_cost = (parseInt(repairer.total_part_cost) || 0) + parseInt(product.part_cost);
-        repairer.payable_amount = (parseInt(repairer.payable_amount) || 0) + parseInt(product.repairer_cost);
-        repairer.pending_amount = (parseInt(repairer.payable_amount) || 0) - (parseInt(repairer.pending_amount) || 0);
-        repairer.updated_at = moment.utc().valueOf();
-      }
-      console.log('repairer: ', repairer)
-      await repairer.save();
+    /* ---------------- UPDATE REPAIRER ---------------- */
+    repairer.products = repairer.products || [];
+
+    if (!repairer.products.includes(product._id)) {
+      repairer.products.push(product._id);
     }
+
+    if (status === "REPAIRED") {
+      console.log('totalCost: ', totalCost);
+      console.log('repairer.total_part_cost: ', repairer.total_part_cost);
+      repairer.total_part_cost = (repairer.total_part_cost || 0) + totalCost;
+
+      repairer.payable_amount =
+        (Number(repairer.payable_amount) || 0) +
+        Number(repairer_cost);
+
+      const paidAmounts = repairer.paid_amount.reduce(
+        (sum, payment) => sum + payment.amount,
+        0
+      )
+
+      repairer.pending_amount =
+        repairer.payable_amount -
+        paidAmounts
+    }
+
+    repairer.updated_at = moment.utc().valueOf();
+    await repairer.save();
+
+    // ✅ Update shops with repair activities (SAFE)
+    for (const singleEle of rebuiltRepairParts) {
+      await User.findByIdAndUpdate(
+        singleEle.shop,
+        {
+          $push: {
+            repair_activities: {
+              product: product._id,
+              part_name: singleEle.part_name,
+              cost: singleEle.cost,
+              repairer: repairer._id,
+              created_at: moment.utc().valueOf()
+            }
+          },
+          $inc: {
+            payable_amount: singleEle.cost,
+            pending_amount: singleEle.cost
+          }
+        }
+      );
+    }
+
     res.json(product);
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
