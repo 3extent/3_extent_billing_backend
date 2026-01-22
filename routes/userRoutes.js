@@ -5,6 +5,7 @@ const Product = require('../models/Product');
 const Brand = require('../models/Brand');
 const Model = require('../models/Model');
 const Role = require('../models/UserRole');
+const TableColumn = require('../models/TableColumn');
 
 // Get all users(CUSTOMER, SUPPLIER, ADMIN) with filters
 // GET /api/users?role=CUSTOMER

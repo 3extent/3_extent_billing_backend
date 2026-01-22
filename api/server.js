@@ -10,6 +10,7 @@ app.use(express.json());
 app.use(cors());
 
 // then import model files so mongoose registers them
+require("./../models/TableColumn");
 require("./../models/MenuItem");
 require("./../models/UserRole");
 require("./../models/User");
