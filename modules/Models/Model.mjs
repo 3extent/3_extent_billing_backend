@@ -8,5 +8,6 @@ const modelSchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
+const Model = mongoose.model('Model', modelSchema);
 
-module.exports = mongoose.model('Model', modelSchema);
+export default Model;

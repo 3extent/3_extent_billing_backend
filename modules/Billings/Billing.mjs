@@ -54,4 +54,5 @@ billingSchema.pre('save', async function (next) {
   next();
 });
 
-module.exports = mongoose.model('Billing', billingSchema);
+const Billing = mongoose.model('Billing', billingSchema);
+export default Billing;

@@ -14,7 +14,7 @@ app.use(cors());
    Register mongoose models
    (IMPORTANT: keep these imports)
 ================================ */
-import './../modules/TableColumns/TableColumn.mjs';
+import '../modules/TableColumns/TableColumn.mjs';
 import '../modules/MenuItems/MenuItem.mjs';
 import '../modules/UserRoles/UserRole.mjs';
 import '../modules/Users/User.mjs';

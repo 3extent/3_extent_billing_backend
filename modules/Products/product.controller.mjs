@@ -4,7 +4,7 @@ import User from '../Users/User.mjs';
 
 import {
   createSingleProduct
-} from './product.helper.mjs';
+} from './product.helpers.mjs';
 
 
 /* GET /api/products */

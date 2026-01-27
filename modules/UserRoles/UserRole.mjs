@@ -12,4 +12,5 @@ const userRoleSchema = new mongoose.Schema({
     updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('UserRole', userRoleSchema);
+const UserRole = mongoose.model('UserRole', userRoleSchema);
+export default UserRole;

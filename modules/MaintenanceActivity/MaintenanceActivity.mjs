@@ -11,4 +11,5 @@ const maintenanceActivitySchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('MaintenanceActivity', maintenanceActivitySchema);
+const MaintenanceActivity = mongoose.model('MaintenanceActivity', maintenanceActivitySchema);
+export default MaintenanceActivity;

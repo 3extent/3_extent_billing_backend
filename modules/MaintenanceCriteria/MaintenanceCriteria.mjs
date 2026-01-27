@@ -9,4 +9,5 @@ const maintenanceCriteriaSchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('MaintenanceCriteria', maintenanceCriteriaSchema);
+const MaintenanceCriteria = mongoose.model('MaintenanceCriteria', maintenanceCriteriaSchema);
+export default MaintenanceCriteria;

@@ -8,4 +8,5 @@ const menuItemSchema = new mongoose.Schema({
     updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('MenuItem', menuItemSchema);
+const MenuItem = mongoose.model('MenuItem', menuItemSchema);
+export default MenuItem;

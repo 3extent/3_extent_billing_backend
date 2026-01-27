@@ -1,6 +1,6 @@
-import Billing from '../models/Billing.mjs';
-import User from '../models/User.mjs';
-import Product from '../models/Product.mjs';
+import Billing from '../Billings/Billing.mjs';
+import User from '../Users/User.mjs';
+import Product from '../Products/Product.mjs';
 import {
   sumBy,
   now,

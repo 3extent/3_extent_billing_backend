@@ -7,4 +7,5 @@ const tableColumnSchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('TableColumn', tableColumnSchema);
+const TableColumn = mongoose.model('TableColumn', tableColumnSchema);
+export default TableColumn;
