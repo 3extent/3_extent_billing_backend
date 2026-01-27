@@ -1,42 +1,40 @@
-const express = require('express');
-const router = express.Router();
-const Brand = require('../models/Brand');
-const Model = require('../models/Model');
-const moment = require('moment');
+import Brand from '../Brands/Brand.mjs';
+import Model from './Model.mjs';
+import moment from 'moment';
 
-// GET /models?modelName=Iphone&brandName=Samsung - get all models
-router.get('/', async (req, res) => {
+// GET /api/models
+export const getModels = async (req, res) => {
   try {
-    const modelName = req.query.modelName;
-    const brandName = req.query.brandName;
+    const { modelName, brandName } = req.query;
+    const filter = {};
 
-    let filter = {};
-
-    // Step 1: If brand name is provided, find brand's ObjectId
+    // If brand name provided, resolve brand ObjectId
     if (brandName) {
-      const brandFromDb = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
+      const brandFromDb = await Brand.findOne({
+        name: { $regex: brandName, $options: 'i' }
+      });
+
       if (!brandFromDb) {
         return res.status(404).json({ message: 'Brand not found' });
       }
+
       filter.brand = brandFromDb._id;
     }
 
-    // Step 2: If model name is provided, add to filter
+    // If model name provided
     if (modelName) {
-      filter.name = { $regex: modelName, $options: 'i' }; // case-insensitive match
+      filter.name = { $regex: modelName, $options: 'i' };
     }
 
-    let models = await Model.find(filter).populate('brand');
-    console.log(models);
-
+    const models = await Model.find(filter).populate('brand');
     res.json(models);
   } catch (err) {
     res.status(500).json({ message: 'Server error', error: err.message });
   }
-});
+};
 
-// POST /api/models - create a new model
-router.post('/', async (req, res) => {
+// POST /api/models
+export const createModel = async (req, res) => {
   try {
     const { name, brand_name, ramStorage } = req.body;
 
@@ -44,18 +42,23 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'name and brand_name are required' });
     }
 
-    // Find brand by name (case-insensitive)
-    const brandDoc = await Brand.findOne({ name: { $regex: brand_name, $options: 'i' } });
+    const brandDoc = await Brand.findOne({
+      name: { $regex: brand_name, $options: 'i' }
+    });
+
     if (!brandDoc) {
       return res.status(404).json({ error: 'Brand not found' });
     }
+
     const brandId = brandDoc._id;
 
     const ramStorageList = Array.isArray(ramStorage)
       ? ramStorage
-      : (ramStorage ? [ramStorage] : []);
+      : ramStorage
+        ? [ramStorage]
+        : [];
 
-    if (ramStorageList.length === 0) {
+    if (!ramStorageList.length) {
       return res.status(400).json({ error: 'ramStorage is required' });
     }
 
@@ -63,19 +66,17 @@ router.post('/', async (req, res) => {
     const skipped = [];
 
     for (const ram of ramStorageList) {
-      console.log("ram", ram)
       let modelName = `${name} ${ram.ram}/${ram.storage}GB`;
-      if (!ram.ram.trim() && ram.storage) {
-        console.log("ram", ram)
+
+      if (!ram.ram?.trim() && ram.storage) {
         modelName = `${name} ${ram.storage}GB`;
       }
 
-      console.log("modelName", modelName)
-
       const exists = await Model.findOne({
         name: modelName,
-        brand: brandId,
+        brand: brandId
       });
+
       if (exists) {
         skipped.push(ram);
         continue;
@@ -87,11 +88,12 @@ router.post('/', async (req, res) => {
         created_at: moment.utc().valueOf(),
         updated_at: moment.utc().valueOf()
       });
+
       try {
         await model.save();
         created.push(model);
       } catch (e) {
-        if (e && e.code === 11000) {
+        if (e?.code === 11000) {
           skipped.push(ram);
           continue;
         }
@@ -99,8 +101,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-
-    return res.status(201).json({
+    res.status(201).json({
       createdCount: created.length,
       created,
       skipped,
@@ -111,36 +112,50 @@ router.post('/', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-// GET /api/models/:id - get a single model
-router.get('/:id', async (req, res) => {
+// GET /api/models/:id
+export const getModelById = async (req, res) => {
   try {
     const model = await Model.findById(req.params.id).populate('brand');
+
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
     }
+
     res.json(model);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-// PUT /api/models/:id - update a single model  
-router.put('/:id', async (req, res) => {
+// PUT /api/models/:id
+export const updateModel = async (req, res) => {
   try {
     const { name, brand_name } = req.body;
-    console.log(name, brand_name);
-    const brandDoc = await Brand.findOne({ name: { $regex: brand_name, $options: 'i' } });
+
+    const brandDoc = await Brand.findOne({
+      name: { $regex: brand_name, $options: 'i' }
+    });
+
     if (!brandDoc) {
       return res.status(404).json({ error: 'Brand not found' });
     }
+
     const brandId = brandDoc._id;
-    const existingModel = await Model.findOne({ name, brand: brandId });
+
+    const existingModel = await Model.findOne({
+      name,
+      brand: brandId,
+      _id: { $ne: req.params.id } // ✅ important fix
+    });
+
     if (existingModel) {
       return res.status(400).json({ error: 'Model already exists' });
     }
-    const model = await Model.findByIdAndUpdate(req.params.id,
+
+    const model = await Model.findByIdAndUpdate(
+      req.params.id,
       {
         name,
         brand: brandId,
@@ -148,13 +163,13 @@ router.put('/:id', async (req, res) => {
       },
       { new: true }
     ).populate('brand');
+
     if (!model) {
       return res.status(404).json({ error: 'Model not found' });
     }
+
     res.json(model);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-module.exports = router;
+};

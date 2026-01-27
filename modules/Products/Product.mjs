@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
 
 const productSchema = new mongoose.Schema({
   model: { type: mongoose.Schema.Types.ObjectId, ref: 'Model' },

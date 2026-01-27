@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
 
 const maintenanceActivitySchema = new mongoose.Schema({
   // title: { type: mongoose.Schema.Types.ObjectId, ref: 'MaintenanceCriteria' },

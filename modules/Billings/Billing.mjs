@@ -1,5 +1,6 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
+
 
 const billingSchema = new mongoose.Schema({
   invoice_number: { type: Number, unique: true },
