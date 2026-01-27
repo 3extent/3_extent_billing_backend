@@ -11,7 +11,7 @@ import { verifyToken } from '../../middlewares/authMiddleware.mjs';
 const router = express.Router();
 
 router.get('/', verifyToken, getUsers);
-router.post('/login', verifyToken, loginUser);
+router.post('/login', loginUser);
 router.post('/', verifyToken, createUser);
 router.get('/:id', verifyToken, getUserById);
 router.put('/:id', verifyToken, updateUser);
