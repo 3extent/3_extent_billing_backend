@@ -1,8 +1,60 @@
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
 import User from './User.mjs';
 import Product from '../Products/Product.mjs';
 import Brand from '../Brands/Brand.mjs';
 import Model from '../Models/Model.mjs';
 import Role from '../UserRoles/UserRole.mjs';
+
+// POST /api/users/login
+export const loginUser = async (req, res) => {
+  try {
+    const { contact_number, password } = req.body;
+
+    // Find user
+    const user = await User.findOne({ contact_number }).populate({
+      path: "role",
+      populate: [
+        { path: "menu_items.name" },
+        { path: "menu_items.show_table_columns" },
+        { path: "menu_items.hidden_dropdown_table_columns" },
+      ],
+    });
+
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role?._id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    // Hide password before sending response
+    user.password = undefined;
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user,
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
 // GET /api/users
 export const getUsers = async (req, res) => {
@@ -49,29 +101,7 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// POST /api/users/login
-export const loginUser = async (req, res) => {
-  try {
-    const { contact_number, password } = req.body;
 
-    const user = await User.findOne({ contact_number }).populate({
-      path: 'role',
-      populate: [
-        { path: 'menu_items.name' },
-        { path: 'menu_items.show_table_columns' },
-        { path: 'menu_items.hidden_dropdown_table_columns' }
-      ]
-    });
-
-    if (!user || password !== user.password) {
-      return res.status(400).json({ message: 'Invalid credentials' });
-    }
-
-    res.json({ user });
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-};
 
 // POST /api/users
 export const createUser = async (req, res) => {

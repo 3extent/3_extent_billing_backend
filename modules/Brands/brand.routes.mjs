@@ -5,12 +5,13 @@ import {
   getBrandById,
   updateBrand
 } from './brand.controller.mjs';
+import { verifyToken } from '../../middlewares/authMiddleware.mjs';
 
 const router = express.Router();
 
-router.get('/', getBrands);
-router.post('/', createBrand);
-router.get('/:id', getBrandById);
-router.put('/:id', updateBrand);
+router.get('/', verifyToken, getBrands);
+router.post('/', verifyToken, createBrand);
+router.get('/:id', verifyToken, getBrandById);
+router.put('/:id', verifyToken, updateBrand);
 
 export default router;

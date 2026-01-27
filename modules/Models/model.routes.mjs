@@ -5,12 +5,13 @@ import {
   getModelById,
   updateModel
 } from './model.controller.mjs';
+import { verifyToken } from '../../middlewares/authMiddleware.mjs';
 
 const router = express.Router();
 
-router.get('/', getModels);
-router.post('/', createModel);
-router.get('/:id', getModelById);
-router.put('/:id', updateModel);
+router.get('/', verifyToken, getModels);
+router.post('/', verifyToken, createModel);
+router.get('/:id', verifyToken, getModelById);
+router.put('/:id', verifyToken, updateModel);
 
 export default router;

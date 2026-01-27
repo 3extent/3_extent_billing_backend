@@ -4,11 +4,12 @@ import {
   getMaintenanceCriteriaById,
   createMaintenanceCriteria
 } from './maintenance-criteria.controller.mjs';
+import { verifyToken } from '../../middlewares/authMiddleware.mjs';
 
 const router = express.Router();
 
-router.get('/', getMaintenanceCriteriaList);
-router.get('/:id', getMaintenanceCriteriaById);
-router.post('/', createMaintenanceCriteria);
+router.get('/',verifyToken, getMaintenanceCriteriaList);
+router.get('/:id',verifyToken, getMaintenanceCriteriaById);
+router.post('/',verifyToken, createMaintenanceCriteria);
 
 export default router;
