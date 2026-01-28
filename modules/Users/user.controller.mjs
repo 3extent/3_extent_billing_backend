@@ -12,13 +12,34 @@ export const loginUser = async (req, res) => {
   try {
     const { contact_number, password } = req.body;
 
-    // Find user
+    //Find user
     const user = await User.findOne({ contact_number }).populate({
       path: "role",
       populate: [
-        { path: "menu_items.name" },
-        { path: "menu_items.show_table_columns" },
-        { path: "menu_items.hidden_dropdown_table_columns" },
+        {
+          path: "menu_items.name",
+          model: "MenuItem",
+        },
+        {
+          path: "menu_items.show_table_columns",
+          model: "TableColumn",
+        },
+        {
+          path: "menu_items.hidden_dropdown_table_columns",
+          model: "TableColumn",
+        },
+        {
+          path: "sub_menu_items.name",
+          model: "SubMenuItem",
+        },
+        {
+          path: "sub_menu_items.show_table_columns",
+          model: "TableColumn",
+        },
+        {
+          path: "sub_menu_items.hidden_dropdown_table_columns",
+          model: "TableColumn",
+        },
       ],
     });
 
