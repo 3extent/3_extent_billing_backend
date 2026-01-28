@@ -7,5 +7,5 @@ const subMenuItemSchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-const SubMenuItemSchema = mongoose.model('SubMenuItemSchema', subMenuItemSchema);
-export default SubMenuItemSchema;
+const SubMenuItem = mongoose.model('SubMenuItem', subMenuItemSchema);
+export default SubMenuItem;
