@@ -39,7 +39,7 @@ export const loginUser = async (req, res) => {
         role: user.role?._id,
       },
       process.env.JWT_SECRET,
-      { expiresIn: "2m" }
+      { expiresIn: "12h" }
     );
 
     // Hide password before sending response
