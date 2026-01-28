@@ -139,90 +139,161 @@ export const getBillingById = async (req, res) => {
 ====================================================== */
 export const createBilling = async (req, res) => {
   try {
-    const { customer_name, contact_number, products, payable_amount, paid_amount = [], status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
-    if (!products?.length) {
-      return res.status(400).json({ error: 'Products required' });
+    // Validate required fields
+    if (!products || !Array.isArray(products) || products.length === 0 || !payable_amount || !paid_amount) {
+      return res.status(400).json({
+        error: 'payable_amount, paid_amount and products array are required'
+      });
     }
 
-    let customer = await User.findOne({ contact_number });
-    if (!customer && status !== 'DRAFTED') {
-      return res.status(400).json({ error: 'Customer not found' });
+    if (status !== "DRAFTED") {
+      if (!customer_name || !contact_number) {
+        return res.status(400).json({
+          error: 'customer_name and contact_number are required'
+        });
+      }
+    }
+    // Check if customer already exists based on contact number
+    let existingCustomer = await User.findOne({ contact_number: contact_number });
+
+
+    let customerId;
+    if (existingCustomer) {
+      // Customer exists, use existing customer ID
+      customerId = existingCustomer._id;
+      console.log(`Using existing customer: ${existingCustomer.name} (${existingCustomer.contact_number})`);
+    } else if (!existingCustomer && status !== "DRAFTED") {
+      return res.status(400).json({
+        error: `Customer not found`
+      });
     }
 
+    // Validate products and update their status to 'sold'
     const foundProducts = [];
     const updatedProducts = [];
 
-    for (const item of products) {
-      const product = await Product.findOne({
-        imei_number: item.imei_number,
-        status: { $in: ['AVAILABLE', 'RETURN'] }
+    for (const singleProduct of products) {
+      // Find product by IMEI, but prefer AVAILABLE status to avoid finding SOLD/REMOVED products
+      // If multiple exist, this ensures we get the correct one
+      let product = await Product.findOne({
+        imei_number: singleProduct.imei_number,
+        status: { $in: ['AVAILABLE', 'RETURN'] } // Only find available products
       });
 
+      // If not found with AVAILABLE status, check if it exists with other status
       if (!product) {
-        return res.status(400).json({ error: `Product ${item.imei_number} not found` });
+        return res.status(400).json({
+          error: `Product with IMEI ${singleProduct.imei_number} not found`
+        });
       }
 
-      foundProducts.push({
-        productId: product._id,
-        final_rate: item.rate,
-        purchase_price: product.purchase_price,
-        gst_purchase_price: product.gst_purchase_price || product.purchase_price
-      });
+      if (product.status === 'SOLD') {
+        return res.status(400).json({
+          error: `Product with IMEI ${product.imei_number} is already sold`
+        });
+      }
+      console.log("singleProduct", singleProduct);
+
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
 
       updatedProducts.push(product);
     }
 
-    const totalCost = foundProducts.reduce((s, p) => s + Number(p.final_rate), 0);
-    const totalPurchase = foundProducts.reduce((s, p) => s + Number(p.purchase_price), 0);
-    const totalGSTPurchase = foundProducts.reduce((s, p) => s + Number(p.gst_purchase_price), 0);
+    const pending_amount = payable_amount - paid_amount.reduce((sum, payment) => sum + payment.amount, 0);
+    const totalCost = foundProducts.reduce((sum, product) => sum + parseFloat(product.final_rate), 0);
+    console.log("foundProducts", foundProducts);
 
-    const profitToShow = totalCost - totalGSTPurchase;
-    const actualProfit = totalCost - totalPurchase;
 
-    const totalPaid = paid_amount.reduce((s, p) => s + Number(p.amount || 0), 0);
-    const pending_amount = payable_amount - totalPaid;
+    const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
+    console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
+
+    const profitToShow = totalCost - totalGSTPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePrice;
 
     let billStatus = status;
-    if (pending_amount === 0) billStatus = 'PAID';
-    else if (totalPaid > 0) billStatus = 'PARTIALLY_PAID';
-    else billStatus = 'UNPAID';
+    if (pending_amount > 0 && billStatus !== "DRAFTED") {
+      if (pending_amount !== payable_amount) {
+        billStatus = "PARTIALLY_PAID"
+      } else {
+        billStatus = "UNPAID"
+      }
+    } else if (pending_amount === 0) {
+      billStatus = "PAID"
+    }
 
-    let c_gst = 0, s_gst = 0;
+    let c_gst = 0;
+    let s_gst = 0;
+
     let net_total = payable_amount;
-
     if (profitToShow > 0) {
       c_gst = profitToShow * 0.09;
       s_gst = profitToShow * 0.09;
-      net_total += c_gst + s_gst;
+      net_total = payable_amount + c_gst + s_gst;
     }
 
-    const billing = await Billing.create({
-      customer: customer?._id,
-      products: foundProducts.map(p => p.productId),
+    // Create billing record
+    const billing = new Billing({
+      customer: customerId,
+      products: foundProducts.map((singleProduct) => singleProduct.productId),
       payable_amount,
+      pending_amount: pending_amount,
       paid_amount,
-      pending_amount,
       status: billStatus,
       profitToShow: profitToShow.toString(),
       actualProfit: actualProfit.toString(),
+      net_total,
       c_gst: c_gst.toString(),
       s_gst: s_gst.toString(),
-      net_total,
       created_at: moment.utc().valueOf(),
-      updated_at: moment.utc().valueOf()
+      update_at: moment.utc().valueOf()
     });
 
-    if (billStatus !== 'DRAFTED') {
-      for (const p of updatedProducts) {
-        p.status = 'SOLD';
-        p.sold_at_price = foundProducts.find(fp => fp.productId.equals(p._id)).final_rate;
-        p.updated_at = moment.utc().valueOf();
-        await p.save();
+    await billing.save();
+
+    // Update all products status to 'SOLD', if billing status is not DRAFTED
+    // Keep all products status to 'AVAILABLE'/ 'RETURN', if billing status is DRAFTED
+
+
+    for (const product of updatedProducts) {
+      if (billStatus !== "DRAFTED") {
+        product.status = 'SOLD';
       }
+      // Find the corresponding final_rate from foundProducts
+      const foundProduct = foundProducts.find(fp => fp.productId.toString() === product._id.toString());
+      if (foundProduct) {
+        product.sold_at_price = foundProduct.final_rate;
+        product.updated_at = moment.utc().valueOf();
+      }
+
+      await product.save();
     }
 
-    res.json({ message: 'Billing created successfully', billing });
+
+    // Populate the billing record with customer and product details
+    const populatedBilling = await Billing.findById(billing._id)
+      .populate('customer')
+      .populate({
+        path: 'products',
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
+      });
+
+    res.json({
+      message: 'Billing created successfully and products marked as sold',
+      billing: populatedBilling,
+      productsUpdated: updatedProducts.length,
+      customerInfo: {
+        id: customerId,
+        name: customer_name,
+        contact_number: contact_number,
+        isNewCustomer: !existingCustomer
+      }
+    });
 
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -234,76 +305,71 @@ export const createBilling = async (req, res) => {
 ====================================================== */
 export const updateBilling = async (req, res) => {
   try {
-    const {
-      customer_name,
-      contact_number,
-      products,
-      payable_amount,
-      paid_amount = [],
-      advance_amount,
-      status
-    } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount = [], advance_amount, status } = req.body;
 
-    if (!customer_name || !contact_number || !Array.isArray(products)) {
-      return res.status(400).json({
-        error: 'Customer name, contact number and products array are required'
-      });
+    if (!customer_name || !contact_number || !products || !Array.isArray(products)) {
+      return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
     }
 
+    // Load bill
     const bill = await Billing.findById(req.params.id).lean();
     if (!bill) {
       return res.status(404).json({ error: 'Billing record not found' });
     }
 
+    // Find customer
     const existingCustomer = await User.findOne({ contact_number });
     if (!existingCustomer) {
       return res.status(400).json({ error: 'Customer not found' });
     }
-
     const customerId = existingCustomer._id;
 
-    /* ---------------- OLD & NEW PRODUCTS ---------------- */
+    // Old products
     const oldProductIds = bill.products.map(id => id.toString());
     const incomingImeis = products.map(p => p.imei_number);
 
     const incomingRateMap = {};
-    for (const p of products) {
-      incomingRateMap[p.imei_number] = p.rate;
-    }
+    for (const p of products) incomingRateMap[p.imei_number] = p.rate;
 
+    // Fetch old products
     const oldProducts = await Product.find({ _id: { $in: oldProductIds } });
     const oldImeis = oldProducts.map(p => p.imei_number);
 
     const oldByImei = {};
     for (const p of oldProducts) oldByImei[p.imei_number] = p;
 
+    // Determine changes
     const removedImeis = oldImeis.filter(i => !incomingImeis.includes(i));
+    const removedProductDocs = oldProducts.filter(p => removedImeis.includes(p.imei_number));
+
     const keptImeis = oldImeis.filter(i => incomingImeis.includes(i));
     const newAddedImeis = incomingImeis.filter(i => !oldImeis.includes(i));
 
-    /* ---------------- HANDLE REMOVED PRODUCTS ---------------- */
-    if (removedImeis.length > 0) {
-      const removedProducts = oldProducts.filter(p =>
-        removedImeis.includes(p.imei_number)
-      );
-
+    // -------- HANDLE REMOVALS --------
+    if (removedProductDocs.length > 0) {
+      // Check for other SOLD products with same IMEI
       const otherSold = await Product.find({
         imei_number: { $in: removedImeis },
         status: 'SOLD',
-        _id: { $nin: removedProducts.map(p => p._id) }
+        _id: { $nin: removedProductDocs.map(p => p._id) }
       });
 
       const soldOtherSet = new Set(otherSold.map(p => p.imei_number));
 
-      for (const p of removedProducts) {
-        p.status = soldOtherSet.has(p.imei_number) ? 'RETURN' : 'AVAILABLE';
+      for (const p of removedProductDocs) {
+        if (soldOtherSet.has(p.imei_number)) {
+          p.status = 'RETURN';
+        } else {
+          p.status = 'AVAILABLE';
+        }
         p.sold_at_price = undefined;
         p.updated_at = moment.utc().valueOf();
         await p.save();
       }
     }
 
-    /* ---------------- VALIDATE NEW PRODUCTS ---------------- */
+
+    // -------- VALIDATE NEWLY ADDED PRODUCTS --------
     let newlyAddedProducts = [];
     if (newAddedImeis.length > 0) {
       newlyAddedProducts = await Product.find({
@@ -311,119 +377,118 @@ export const updateBilling = async (req, res) => {
         status: { $in: ['AVAILABLE', 'RETURN'] }
       });
 
-      const foundImeis = newlyAddedProducts.map(p => p.imei_number);
-      const missing = newAddedImeis.filter(i => !foundImeis.includes(i));
+      const foundNewImeis = newlyAddedProducts.map(p => p.imei_number);
+      const missing = newAddedImeis.filter(i => !foundNewImeis.includes(i));
 
       if (missing.length > 0) {
-        return res.status(400).json({
-          error: `Products not found or unavailable: ${missing.join(', ')}`
-        });
+        return res.status(400).json({ error: `Products not found or not available: ${missing.join(', ')}` });
       }
     }
 
-    /* ---------------- BUILD PRODUCT LIST ---------------- */
+
+    // -------- BUILD NEW BILL PRODUCT LIST --------
     const foundProducts = [];
     const updatedProducts = [];
 
+    // Kept items
     for (const imei of keptImeis) {
       const p = oldByImei[imei];
+      const finalRate = incomingRateMap[imei];
+
       foundProducts.push({
         productId: p._id,
-        final_rate: incomingRateMap[imei],
+        final_rate: finalRate,
         purchase_price: p.purchase_price,
         gst_purchase_price: p.gst_purchase_price || p.purchase_price
       });
+
       updatedProducts.push(p);
     }
 
+    // Newly added
     for (const p of newlyAddedProducts) {
+      const finalRate = incomingRateMap[p.imei_number];
+
       foundProducts.push({
         productId: p._id,
-        final_rate: incomingRateMap[p.imei_number],
+        final_rate: finalRate,
         purchase_price: p.purchase_price,
         gst_purchase_price: p.gst_purchase_price || p.purchase_price
       });
+
       updatedProducts.push(p);
     }
 
-    /* ---------------- CALCULATIONS ---------------- */
-    const totalPaid = paid_amount.reduce(
-      (s, p) => s + Number(p.amount || 0),
-      0
-    );
 
-    const pending_amount = Number(payable_amount) - totalPaid;
+    // -------- CALCULATE PAYMENTS & PROFITS --------
+    const numericPaidArray = Array.isArray(paid_amount) ? paid_amount : [];
+    const totalPaid = numericPaidArray.reduce((s, pay) => s + (parseFloat(pay.amount) || 0), 0);
+    const pending_amount = (parseFloat(payable_amount) || 0) - totalPaid;
 
-    const totalCost = foundProducts.reduce(
-      (s, p) => s + Number(p.final_rate),
-      0
-    );
-    const totalPurchase = foundProducts.reduce(
-      (s, p) => s + Number(p.purchase_price),
-      0
-    );
-    const totalGSTPurchase = foundProducts.reduce(
-      (s, p) => s + Number(p.gst_purchase_price),
-      0
-    );
+    const totalCost = foundProducts.reduce((s, fp) => s + (parseFloat(fp.final_rate) || 0), 0);
+    const totalGSTPurchasePrice = foundProducts.reduce((s, fp) => s + (parseFloat(fp.gst_purchase_price) || 0), 0);
+    const totalPurchasePrice = foundProducts.reduce((s, fp) => s + (parseFloat(fp.purchase_price) || 0), 0);
 
-    const profitToShow = totalCost - totalGSTPurchase;
-    const actualProfit = totalCost - totalPurchase;
+    const profitToShow = totalCost - totalGSTPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePrice;
 
     let c_gst = 0;
     let s_gst = 0;
-    let net_total = Number(payable_amount);
+    let net_total = parseFloat(payable_amount) || 0;
 
     if (profitToShow > 0) {
       c_gst = profitToShow * 0.09;
       s_gst = profitToShow * 0.09;
-      net_total += c_gst + s_gst;
+      net_total = net_total + c_gst + s_gst;
     }
 
-    /* ---------------- UPDATE BILL ---------------- */
-    const savedBill = await Billing.findByIdAndUpdate(
-      req.params.id,
-      {
-        customer: customerId,
-        products: foundProducts.map(p => p.productId),
-        payable_amount,
-        pending_amount,
-        paid_amount,
-        advance_amount,
-        status,
-        profitToShow: profitToShow.toString(),
-        actualProfit: actualProfit.toString(),
-        c_gst: c_gst.toString(),
-        s_gst: s_gst.toString(),
-        net_total,
-        updated_at: moment.utc().valueOf()
-      },
-      { new: true }
-    );
 
-    /* ---------------- UPDATE PRODUCTS ---------------- */
+    // -------- UPDATE BILL --------
+    const billUpdate = {
+      customer: customerId,
+      products: foundProducts.map(fp => fp.productId),
+      payable_amount,
+      pending_amount,
+      paid_amount: numericPaidArray,
+      advance_amount,
+      status,
+      actualProfit: actualProfit.toString(),
+      profitToShow: profitToShow.toString(),
+      net_total,
+      c_gst: c_gst.toString(),
+      s_gst: s_gst.toString(),
+      updated_at: moment.utc().valueOf()
+    };
+
+    const savedBill = await Billing.findByIdAndUpdate(req.params.id, billUpdate, { new: true });
+
+
+    // -------- UPDATE PRODUCTS (kept + newly added) --------
     for (const product of updatedProducts) {
-      if (status !== 'DRAFTED') product.status = 'SOLD';
+      if (status !== 'DRAFTED') {
+        product.status = 'SOLD';
+      }
 
-      const fp = foundProducts.find(
-        f => f.productId.toString() === product._id.toString()
-      );
-      if (fp) product.sold_at_price = fp.final_rate;
+      const fp = foundProducts.find(f => f.productId.toString() === product._id.toString());
+      if (fp) {
+        product.sold_at_price = fp.final_rate;
+      }
 
       product.updated_at = moment.utc().valueOf();
       await product.save();
     }
 
-    /* ---------------- UPDATE CUSTOMER ADVANCE ---------------- */
-    const totalAdvance =
-      (Number(existingCustomer.advance_amount) || 0) +
-      Number(advance_amount || 0);
+    // ------- UPDATE CUSTOMER WITH ADVANCE AMOUNT-------------
 
+    const total_advance_amount = Number(existingCustomer.advance_amount) || 0 + Number(advance_amount);
     await User.findByIdAndUpdate(existingCustomer._id, {
-      advance_amount: totalAdvance.toString(),
+      advance_amount: total_advance_amount.toString(),
       updated_at: moment.utc().valueOf()
-    });
+    },
+      { new: true }
+    );
 
+    // -------- RETURN POPULATED BILL --------
     const populatedBilling = await Billing.findById(savedBill._id)
       .populate('customer')
       .populate({
@@ -431,14 +496,22 @@ export const updateBilling = async (req, res) => {
         populate: { path: 'model', populate: { path: 'brand' } }
       });
 
-    res.json({
+    return res.json({
       message: 'Billing updated successfully',
-      billing: populatedBilling
+      billing: populatedBilling,
+      productsUpdated: updatedProducts.length,
+      customerInfo: {
+        id: customerId,
+        name: customer_name,
+        contact_number,
+        isNewCustomer: false
+      }
     });
+
 
   } catch (err) {
     console.error('Error updating billing:', err);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 };
 
@@ -450,39 +523,56 @@ export const updateBillingPayment = async (req, res) => {
   try {
     const { paid_amount } = req.body;
 
+    /* ---------------------------------------------------
+       0️⃣ VALIDATION
+    --------------------------------------------------- */
     if (!Array.isArray(paid_amount) || paid_amount.length === 0) {
       return res.status(400).json({
         error: 'paid_amount must be a non-empty array'
       });
     }
 
+    /* ---------------------------------------------------
+       1️⃣ FETCH BILL
+    --------------------------------------------------- */
     const bill = await Billing.findById(req.params.id)
       .populate('customer')
       .populate({
         path: 'products',
-        populate: { path: 'model', populate: { path: 'brand' } }
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
       });
 
     if (!bill) {
       return res.status(404).json({ error: 'Bill not found' });
     }
 
-    /* ---------------- MERGE PAYMENTS ---------------- */
+
+
+    /* ---------------------------------------------------
+       2️⃣ MERGE EXISTING + NEW PAYMENTS
+    --------------------------------------------------- */
     const paidMap = {};
 
+    // Existing payments from DB
     bill.paid_amount.forEach(p => {
       paidMap[p.method] = Number(p.amount);
     });
 
-    for (const p of paid_amount) {
-      if (!p.method || p.amount == null) {
+    // Incoming payments
+    for (const payment of paid_amount) {
+      if (!payment.method || payment.amount == null) {
         return res.status(400).json({
           error: 'Each payment must have method and amount'
         });
       }
 
-      paidMap[p.method] =
-        (paidMap[p.method] || 0) + Number(p.amount);
+      const amt = Number(payment.amount);
+
+      paidMap[payment.method] =
+        (paidMap[payment.method] || 0) + amt;
     }
 
     const updatedPaidAmount = Object.keys(paidMap).map(method => ({
@@ -490,51 +580,71 @@ export const updateBillingPayment = async (req, res) => {
       amount: paidMap[method].toString()
     }));
 
-    /* ---------------- HANDLE ADVANCE ---------------- */
     const advancePayment = paid_amount
       .filter(p => p.method === 'advance_amount')
-      .reduce((s, p) => s + Number(p.amount), 0);
+      .reduce((total, p) => total + Number(p.amount), 0);
 
     if (advancePayment > 0) {
-      const updatedAdvance =
-        Number(bill.customer.advance_amount || 0) - advancePayment;
-
-      await User.findByIdAndUpdate(bill.customer._id, {
-        advance_amount: updatedAdvance.toString(),
-        updated_at: moment.utc().valueOf()
-      });
+      // If the customer has an advance_amount field
+      const updated_advance_amount = Number(bill.customer.advance_amount) - Number(advancePayment);
+      await User.findByIdAndUpdate(bill.customer._id,
+        {
+          advance_amount: updated_advance_amount.toString(),
+          updated_at: moment.utc().valueOf()
+        },
+        { new: true }
+      )
     }
 
-    /* ---------------- CALCULATE STATUS ---------------- */
-    const totalPaid = Object.values(paidMap).reduce((s, v) => s + v, 0);
-    let pending_amount = Number(bill.payable_amount) - totalPaid;
+    /* ---------------------------------------------------
+       3️⃣ CALCULATE TOTAL & PENDING
+    --------------------------------------------------- */
+    const totalPaid = Object.values(paidMap)
+      .reduce((sum, amt) => sum + amt, 0);
+
+    const payable = Number(bill.payable_amount);
+    let pending_amount = payable - totalPaid;
+
     if (pending_amount < 0) pending_amount = 0;
 
+    /* ---------------------------------------------------
+       4️⃣ BILL STATUS LOGIC
+    --------------------------------------------------- */
     let billStatus = 'UNPAID';
-    if (pending_amount === 0 && totalPaid > 0) billStatus = 'PAID';
-    else if (totalPaid > 0) billStatus = 'PARTIALLY_PAID';
 
-    /* ---------------- FIRST TIME FROM DRAFT ---------------- */
+    if (pending_amount === 0 && totalPaid > 0) {
+      billStatus = 'PAID';
+    } else if (totalPaid > 0) {
+      billStatus = 'PARTIALLY_PAID';
+    }
+
+    /* ---------------------------------------------------
+       5️⃣ UPDATE PRODUCTS (ONLY FIRST TIME)
+    --------------------------------------------------- */
     if (bill.status === 'DRAFTED') {
-      for (const prod of bill.products) {
+      for (const singleProduct of bill.products) {
         const product = await Product.findOne({
-          imei_number: prod.imei_number,
+          imei_number: singleProduct.imei_number,
           status: { $in: ['AVAILABLE', 'RETURN'] }
         });
 
         if (!product) {
           return res.status(400).json({
-            error: `Product ${prod.imei_number} already sold`
+            error: `Product with IMEI ${singleProduct.imei_number} not found or already sold`
           });
         }
 
         product.status = 'SOLD';
-        product.sold_at_price = prod.sold_at_price;
+        product.sold_at_price = singleProduct.sold_at_price;
         product.updated_at = moment.utc().valueOf();
+
         await product.save();
       }
     }
 
+    /* ---------------------------------------------------
+       6️⃣ UPDATE BILL
+    --------------------------------------------------- */
     const updatedBill = await Billing.findByIdAndUpdate(
       req.params.id,
       {
@@ -548,13 +658,16 @@ export const updateBillingPayment = async (req, res) => {
       .populate('customer')
       .populate({
         path: 'products',
-        populate: { path: 'model', populate: { path: 'brand' } }
+        populate: {
+          path: 'model',
+          populate: { path: 'brand' }
+        }
       });
+
 
     res.json(updatedBill);
 
   } catch (err) {
-    console.error('Payment update error:', err);
     res.status(500).json({ error: err.message });
   }
 };
