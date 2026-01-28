@@ -227,6 +227,56 @@ export const getUserById = async (req, res) => {
       ra => ra.product && ra.repairer
     );
 
+    /* ---------------------------------------------------
+      CALCULATIONS
+   --------------------------------------------------- */
+    const purchase_total_of_all_products = user.products.reduce(
+      (sum, product) => sum + (Number(product.purchase_price) || 0),
+      0
+    );
+
+    const total_parts_cost_used = user.products.reduce(
+      (sum, product) => sum + (Number(product.part_cost) || 0),
+      0
+    );
+
+    const total_payable_amount = user.products.reduce(
+      (sum, product) => sum + (Number(product.repairer_cost) || 0),
+      0
+    );
+
+    console.log('user: ', user);
+    let total_payable_amount_of_parts = 0;
+    if (user.repair_activities.length !== 0) {
+      total_payable_amount_of_parts = user.repair_activities.reduce(
+        (sum, activity) => sum + (Number(activity.cost) || 0),
+        0
+      );
+    }
+    else {
+      total_payable_amount_of_parts = user.products.reduce(
+        (productAcc, product) => {
+          const productPartsTotal = (product.repair_parts || []).reduce(
+            (partsAcc, part) => partsAcc + (part.cost || 0),
+            0
+          );
+          return productAcc + productPartsTotal;
+        },
+        0
+      );
+    }
+
+    /* ---------------------------------------------------
+       RESPONSE
+    --------------------------------------------------- */
+    res.json({
+      user,
+      purchase_total_of_all_products,
+      total_parts_cost_used,
+      total_payable_amount,
+      total_payable_amount_of_parts
+    });
+
     res.json({ user });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -248,35 +298,51 @@ export const updateUser = async (req, res) => {
 export const updateUserPayment = async (req, res) => {
   try {
     const { paid_amount, payable_amount, total_part_cost } = req.body;
-
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    let payable = (Number(user.payable_amount) || 0) + (Number(payable_amount) || 0);
+    const user = await User.findById(req.params.id).populate({ path: 'products', populate: { path: 'model' } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    let payable = parseInt(user.payable_amount) || 0 + parseInt(payable_amount) || 0;
 
     const paidMap = {};
-    user.paid_amount.forEach(p => (paidMap[p.method] = Number(p.amount)));
 
-    for (const p of paid_amount) {
-      paidMap[p.method] = (paidMap[p.method] || 0) + Number(p.amount);
+    // Existing payments from DB
+    user.paid_amount.forEach(p => {
+      paidMap[p.method] = Number(p.amount);
+    });
+
+    // Incoming payments
+    for (const payment of paid_amount) {
+      if (!payment.method || payment.amount == null) {
+        return res.status(400).json({
+          error: 'Each payment must have method and amount'
+        });
+      }
+
+      const amt = Number(payment.amount);
+
+      paidMap[payment.method] =
+        (paidMap[payment.method] || 0) + amt;
     }
 
-    const pending_amount =
-      payable - Object.values(paidMap).reduce((s, a) => s + a, 0);
+    const updatedPaidAmount = Object.keys(paidMap).map(method => ({
+      method,
+      amount: paidMap[method].toString()
+    }));
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
+    const totalPaid = Object.values(paidMap)
+      .reduce((sum, amt) => sum + amt, 0);
+
+    let pending_amount = parseInt(payable) - parseInt(totalPaid);
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id,
       {
         payable_amount: payable,
-        paid_amount: Object.entries(paidMap).map(([m, a]) => ({
-          method: m,
-          amount: a.toString()
-        })),
+        paid_amount: updatedPaidAmount,
         pending_amount,
         total_part_cost
-      },
-      { new: true }
-    );
+      }, { new: true });
+
 
     res.json(updatedUser);
   } catch (err) {
