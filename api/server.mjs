@@ -22,6 +22,7 @@ import '../modules/Products/Product.mjs';
 import '../modules/Billings/Billing.mjs';
 import '../modules/MaintenanceActivity/MaintenanceActivity.mjs';
 import '../modules/MaintenanceCriteria/MaintenanceCriteria.mjs';
+import '../modules/SubMenuItems/SubMenuItem.mjs';
 
 /* ===============================
    Routes
