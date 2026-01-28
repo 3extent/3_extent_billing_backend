@@ -566,18 +566,53 @@ export const updateBillingPayment = async (req, res) => {
 export const deleteBilling = async (req, res) => {
   try {
     const billing = await Billing.findById(req.params.id);
-    if (!billing) return res.status(404).json({ error: 'Billing not found' });
+    if (!billing) {
+      return res.status(404).json({ error: 'Billing not found' });
+    }
+    if (billing.status === 'DRAFTED') {
+      // Soft delete: set status to REMOVED_DRAFTED (or add isDeleted flag)
+      billing.status = 'REMOVED_DRAFTED';
+    } else if (billing.status === 'PAID' || billing.status === 'UNPAID' || billing.status === 'PARTIALLY_PAID') {
+      // Soft delete: set status to REMOVED_CHECKOUT (or add isDeleted flag)
+      billing.status = 'REMOVED_CHECKOUT';
+      if (billing.products.length > 0) {
 
-    billing.status =
-      billing.status === 'DRAFTED'
-        ? 'REMOVED_DRAFTED'
-        : 'REMOVED_CHECKOUT';
+        const allProducts = await Product.find({
+          _id: { $in: billing.products.map(p => p._id) }
+        });
+
+
+        // Check for other SOLD products with same IMEI
+        const otherSold = await Product.find({
+          imei_number: { $in: billing.products.map(p => p.imei_number) },
+          status: 'SOLD',
+          _id: { $nin: billing.products.map(p => p._id) }
+        });
+        console.log('otherSold: ', otherSold);
+
+        const soldOtherSet = new Set(otherSold.map(p => p.imei_number));
+        console.log('soldOtherSet: ', soldOtherSet);
+
+        for (const p of allProducts) {
+          if (soldOtherSet.has(p.imei_number)) {
+            p.status = 'RETURN';
+          } else {
+            p.status = 'AVAILABLE';
+          }
+          p.sold_at_price = undefined;
+          p.updated_at = moment.utc().valueOf();
+          await p.save();
+        }
+      }
+    }
 
     billing.updated_at = moment.utc().valueOf();
     await billing.save();
 
-    res.json({ message: 'Billing removed', billingId: billing._id });
-
+    res.json({
+      message: 'Billing soft-deleted (status set to REMOVED)',
+      billingId: req.params.id
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
