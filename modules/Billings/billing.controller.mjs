@@ -398,8 +398,8 @@ export const updateBilling = async (req, res) => {
       foundProducts.push({
         productId: p._id,
         final_rate: finalRate,
-        purchase_price: p.purchase_price,
-        gst_purchase_price: p.gst_purchase_price || p.purchase_price
+        purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
+        gst_purchase_price: p.gst_purchase_price || p.purchase_cost_including_expenses || p.purchase_price
       });
 
       updatedProducts.push(p);
@@ -412,8 +412,8 @@ export const updateBilling = async (req, res) => {
       foundProducts.push({
         productId: p._id,
         final_rate: finalRate,
-        purchase_price: p.purchase_price,
-        gst_purchase_price: p.gst_purchase_price || p.purchase_price
+        purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
+        gst_purchase_price: p.gst_purchase_price || p.purchase_cost_including_expenses || p.purchase_price
       });
 
       updatedProducts.push(p);
@@ -427,10 +427,10 @@ export const updateBilling = async (req, res) => {
 
     const totalCost = foundProducts.reduce((s, fp) => s + (parseFloat(fp.final_rate) || 0), 0);
     const totalGSTPurchasePrice = foundProducts.reduce((s, fp) => s + (parseFloat(fp.gst_purchase_price) || 0), 0);
-    const totalPurchasePrice = foundProducts.reduce((s, fp) => s + (parseFloat(fp.purchase_price) || 0), 0);
+    const totalPurchasePriceIncludingExpenses = foundProducts.reduce((s, fp) => s + (parseFloat(fp.purchase_cost_including_expenses) || 0), 0);
 
     const profitToShow = totalCost - totalGSTPurchasePrice;
-    const actualProfit = totalCost - totalPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePriceIncludingExpenses;
 
     let c_gst = 0;
     let s_gst = 0;
