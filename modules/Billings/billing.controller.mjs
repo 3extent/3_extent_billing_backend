@@ -305,7 +305,7 @@ export const createBilling = async (req, res) => {
 ====================================================== */
 export const updateBilling = async (req, res) => {
   try {
-    const { customer_name, contact_number, products, payable_amount, paid_amount = [], advance_amount, status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount = [], advance_amount = 0, status } = req.body;
 
     if (!customer_name || !contact_number || !products || !Array.isArray(products)) {
       return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
