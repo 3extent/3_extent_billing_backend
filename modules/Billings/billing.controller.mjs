@@ -196,7 +196,7 @@ export const createBilling = async (req, res) => {
       }
       console.log("singleProduct", singleProduct);
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
+      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: product.purchase_cost_including_expenses || product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
 
       updatedProducts.push(product);
     }
@@ -207,11 +207,11 @@ export const createBilling = async (req, res) => {
 
 
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
-    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
+    const totalPurchasePriceIncludingExpenses = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_cost_including_expenses), 0);
     console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
 
     const profitToShow = totalCost - totalGSTPurchasePrice;
-    const actualProfit = totalCost - totalPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePriceIncludingExpenses;
 
     let billStatus = status;
     if (pending_amount > 0 && billStatus !== "DRAFTED") {
