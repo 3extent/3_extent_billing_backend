@@ -377,10 +377,6 @@ export const addPartUser = async (req, res) => {
   try {
     const { part_name, part_cost, shop_name, model_name } = req.body;
 
-    if (!part_name || part_cost === undefined || !shop_name || !model_name) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
-
     const userId = req.user.userId; // logged-in user
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });

@@ -43,19 +43,12 @@ const userSchema = new mongoose.Schema({
     cost: { type: Number, default: 0 },
     repairer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }],
-  // parts: [{
-  //     part_name: { type: String  },
-  //     part_cost: { type: Number, default: 0 },
-  //     shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  //     model: { type: mongoose.Schema.Types.ObjectId, ref: 'Model' },
-  //   }],
+ 
   parts: [{
     part_name: String,
     part_cost: { type: Number, default: 0 },
     shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     model: { type: mongoose.Schema.Types.ObjectId, ref: 'Model' },
-    // shop: { type: String },
-    // model: { type: String }
   }],
 
   created_at: { type: Number, default: moment.utc().valueOf() },
