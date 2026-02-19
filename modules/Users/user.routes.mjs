@@ -5,7 +5,9 @@ import {
   createUser,
   getUserById,
   updateUser,
-  updateUserPayment
+  updateUserPayment,
+  addPartUser,
+  // addPart
 } from './user.controller.mjs';
 import { verifyToken } from '../../middlewares/authMiddleware.mjs';
 const router = express.Router();
@@ -16,5 +18,8 @@ router.post('/', verifyToken, createUser);
 router.get('/:id', verifyToken, getUserById);
 router.put('/:id', verifyToken, updateUser);
 router.put('/payment/:id', verifyToken, updateUserPayment);
+router.post('/parts', verifyToken, addPartUser);
+
+
 
 export default router;

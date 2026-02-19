@@ -7,6 +7,8 @@ import Brand from '../Brands/Brand.mjs';
 import Model from '../Models/Model.mjs';
 import Role from '../UserRoles/UserRole.mjs';
 
+
+
 // POST /api/users/login
 export const loginUser = async (req, res) => {
   try {
@@ -368,5 +370,49 @@ export const updateUserPayment = async (req, res) => {
     res.json(updatedUser);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+export const addPartUser = async (req, res) => {
+  try {
+    const { part_name, part_cost, shop_name, model_name } = req.body;
+
+    if (!part_name || part_cost === undefined || !shop_name || !model_name) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    const userId = req.user.userId; // logged-in user
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Find shop by name
+    const shop = await User.findOne({ name: shop_name });
+    if (!shop) return res.status(404).json({ message: "Shop not found" });
+
+    // Find model by name
+    const model = await Model.findOne({ name: model_name });
+    if (!model) return res.status(404).json({ message: "Model not found" });
+
+    user.parts.push({
+      part_name,
+      part_cost,
+      shop: shop._id,  
+      model: model._id 
+    });
+
+    await user.save();
+    const populatedUser = await User.findById(userId)
+      .populate({
+        path: "parts.shop",
+        select: "name"
+      })
+      .populate({
+        path: "parts.model",
+        select: "name"
+      });
+
+    res.json({ message: "Part Add Successfully", populatedUser });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
