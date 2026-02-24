@@ -12,37 +12,30 @@ export const loginUser = async (req, res) => {
   try {
     const { contact_number, password } = req.body;
 
-    //Find user
     const user = await User.findOne({ contact_number }).populate({
       path: "role",
       populate: [
         {
           path: "menu_items.name",
           model: "MenuItem",
+          populate: {
+            path: "parent",        // ✅ this matches your schema
+            model: "MenuItem",
+            select: "name"
+          }
         },
         {
           path: "menu_items.show_table_columns",
           model: "TableColumn",
+          select: "name"
         },
         {
           path: "menu_items.hidden_dropdown_table_columns",
           model: "TableColumn",
-        },
-        {
-          path: "second_level_items.name",
-          model: "SecondLevelItem",
-        },
-        {
-          path: "second_level_items.show_table_columns",
-          model: "TableColumn",
-        },
-        {
-          path: "second_level_items.hidden_dropdown_table_columns",
-          model: "TableColumn",
-        },
-      ],
+          select: "name"
+        }
+      ]
     });
-
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
