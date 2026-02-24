@@ -29,15 +29,15 @@ export const loginUser = async (req, res) => {
           model: "TableColumn",
         },
         {
-          path: "sub_menu_items.name",
-          model: "SubMenuItem",
+          path: "second_level_items.name",
+          model: "SecondLevelItem",
         },
         {
-          path: "sub_menu_items.show_table_columns",
+          path: "second_level_items.show_table_columns",
           model: "TableColumn",
         },
         {
-          path: "sub_menu_items.hidden_dropdown_table_columns",
+          path: "second_level_items.hidden_dropdown_table_columns",
           model: "TableColumn",
         },
       ],

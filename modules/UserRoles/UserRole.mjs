@@ -8,8 +8,8 @@ const userRoleSchema = new mongoose.Schema({
         show_table_columns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TableColumn' }],
         hidden_dropdown_table_columns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TableColumn' }]
     }],
-    sub_menu_items: [{
-        name: { type: mongoose.Schema.Types.ObjectId, ref: 'SubMenuItem' },
+    second_level_items: [{
+        name: { type: mongoose.Schema.Types.ObjectId, ref: 'SecondLevelItem' },
         show_table_columns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TableColumn' }],
         hidden_dropdown_table_columns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TableColumn' }]
     }],
