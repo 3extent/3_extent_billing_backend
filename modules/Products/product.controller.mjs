@@ -140,8 +140,24 @@ export const getProducts = async (req, res) => {
 
     console.log(filter);
 
-    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by').sort({ created_at: -1 });;
-    let part_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
+    const products = await Product.find(filter)
+      .populate({
+        path: "model",
+        select: "name",
+        populate: {
+          path: "brand",
+          select: "name"
+        }
+      })
+      .populate({
+        path: "supplier",
+        select: "name"
+      })
+      .populate({
+        path: "repair_by",
+        select: "name"
+      })
+      .sort({ created_at: -1 }); let part_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
     let repairer_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.repairer_cost) || 0), 0);
     let purchase_total_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.purchase_price) || 0), 0);
 
