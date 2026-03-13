@@ -5,23 +5,55 @@ import Model from '../Models/Model.mjs';
 import User from '../Users/User.mjs';
 import Role from '../UserRoles/UserRole.mjs';
 
-export async function validateModelAndSupplier(model_name, supplier_name, brand) {
-  let model = await Model.findOne({ name: model_name, brand: brand._id });
-
-  if (!model) {
-    model = new Model({
-      name: model_name,
-      brand: brand._id,
-      created_at: moment.utc().valueOf(),
-      updated_at: moment.utc().valueOf()
-    });
-    await model.save();
+async function getOrCreateBrandByName(brand_name) {
+  // Find if available or create brand
+  let brand = await Brand.findOne({ name: brand_name });
+  if (brand) {
+    return brand;
   }
+  const now = moment.utc().valueOf();
+  brand = new Brand({
+    name: brand_name,
+    created_at: now,
+    updated_at: now
+  });
+  await brand.save();
+  return brand;
+}
+
+async function getOrCreateModelByNameAndBrand(model_name, brandId) {
+  // Find if available or create model
+  let model = await Model.findOne({ name: model_name, brand: brandId });
+  if (model) {
+    return model;
+  }
+  const now = moment.utc().valueOf();
+  model = new Model({
+    name: model_name,
+    brand: brandId,
+    created_at: now,
+    updated_at: now
+  });
+  await model.save();
+  return model;
+}
+
+export async function validateModelAndSupplier(model_name, supplier_name, brand) {
+  const model = await getOrCreateModelByNameAndBrand(model_name, brand._id);
 
   const supplier_role = await Role.findOne({ name: 'SUPPLIER' });
-  const supplier = await User.findOne({ name: supplier_name, role: supplier_role._id });
+  let supplier = await User.findOne({ name: supplier_name, role: supplier_role._id });
 
-  if (!supplier) throw new Error('Supplier not found');
+  if (!supplier) {
+    const now = moment.utc().valueOf();
+    supplier = new User({
+      name: supplier_name,
+      role: supplier_role._id,
+      created_at: now,
+      updated_at: now,
+    });
+    await supplier.save();
+  }
 
   return { model, supplier };
 }
@@ -51,19 +83,13 @@ export async function createSingleProduct(productData) {
     accessories,
     supplier_name,
     qc_remark,
-    status
+    status,
+    product_created_at,
+    product_updated_at,
+    sold_at_price
   } = productData;
 
-  let brand = await Brand.findOne({ name: brand_name });
-
-  if (!brand) {
-    brand = new Brand({
-      name: brand_name,
-      created_at: moment.utc().valueOf(),
-      updated_at: moment.utc().valueOf()
-    });
-    await brand.save();
-  }
+  const brand = await getOrCreateBrandByName(brand_name);
 
   const { model, supplier } =
     await validateModelAndSupplier(model_name, supplier_name, brand);
@@ -83,6 +109,9 @@ export async function createSingleProduct(productData) {
     accessories,
     supplier,
     qc_remark,
-    status: finalStatus
+    status: finalStatus,
+    created_at: product_created_at,
+    updated_at: product_updated_at,
+    sold_at_price
   });
 }

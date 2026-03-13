@@ -2,6 +2,8 @@ import moment from 'moment';
 import Billing from './Billing.mjs';
 import User from '../Users/User.mjs';
 import Product from '../Products/Product.mjs';
+import { createSingleProduct } from '../Products/product.helpers.mjs';
+import UserRole from '../UserRoles/UserRole.mjs';
 
 /* ======================================================
    GET /api/billings
@@ -728,5 +730,292 @@ export const deleteBilling = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+
+/* ======================================================
+   POST /api/billings/bulk
+====================================================== */
+/* ======================================================
+   POST /api/billings/bulk
+====================================================== */
+
+export const createBulkProductsAndBilling = async (req, res) => {
+  try {
+
+    const products = req.body;
+
+    if (!Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({
+        error: "Products array is required"
+      });
+    }
+
+    /* -------------------------------------------------- */
+    /* 1. CHECK DUPLICATE IMEI IN INPUT                   */
+    /* -------------------------------------------------- */
+
+    const seen = new Set();
+
+    for (let i = 0; i < products.length; i++) {
+
+      const imei = products[i].imei_number;
+
+      if (seen.has(imei)) {
+        return res.status(400).json({
+          error: `Duplicate imei_number '${imei}' found at index ${i}`
+        });
+      }
+
+      seen.add(imei);
+    }
+
+    /* -------------------------------------------------- */
+    /* 2. MAP BILL_ID WITH PRODUCTS + BILL INFO           */
+    /* -------------------------------------------------- */
+
+    const billMap = {};
+
+    for (const product of products) {
+
+      const billId = product.bill_id || product.invoice_number;
+
+      if (!billMap[billId]) {
+
+        billMap[billId] = {
+          bill_id: billId,
+          customer_name: product.customer_name,
+          billing_created_at: product.billing_created_at,
+          billing_updated_at: product.billing_updated_at,
+          products: []
+        };
+
+      }
+
+      billMap[billId].products.push(product);
+    }
+
+    const bills = Object.values(billMap);
+
+    /* -------------------------------------------------- */
+    /* 3. FETCH CUSTOMER IDs USING CUSTOMER NAME          */
+    /* -------------------------------------------------- */
+
+    const customerNames = [...new Set(bills.map(b => b.customer_name))];
+
+    const customers = await User.find({
+      name: { $in: customerNames }
+    }).select("_id name");
+
+    const customerLookup = {};
+
+    customers.forEach(customer => {
+      customerLookup[customer.name] = customer._id;
+    });
+
+    /* -------------------------------------------------- */
+    /* 4. PROCESS EACH BILL                               */
+    /* -------------------------------------------------- */
+
+    const billingResults = await Promise.all(
+      bills.map(async (bill) => {
+        const billProducts = bill.products;
+
+        const createdAt = bill.billing_created_at
+          ? moment(bill.billing_created_at).valueOf()
+          : moment().valueOf();
+
+        const updatedAt = bill.billing_updated_at
+          ? moment(bill.billing_updated_at).valueOf()
+          : moment().valueOf();
+
+        let customerId = customerLookup[bill.customer_name];
+
+        // Get the role id of the customer
+        let customerRoleId = null;
+        if (customerId) {
+          const customerDoc = await UserRole.findOne({ name: "CUSTOMER" });
+          if (customerDoc) {
+            customerRoleId = customerDoc._id;
+          }
+        }
+
+        if (!customerId) {
+          const newCustomer = new User({
+            name: bill.customer_name,
+            role: customerRoleId,
+            created_at: createdAt,
+            updated_at: updatedAt
+          });
+
+          await newCustomer.save();
+
+          customerId = newCustomer._id;
+
+          // update lookup so next bill with same customer won't create again
+          customerLookup[bill.customer_name] = customerId;
+        }
+
+
+        /* ---------------------------------------------- */
+        /* PREPARE PRODUCTS                               */
+        /* ---------------------------------------------- */
+
+        const preparedProducts = [];
+
+        for (const product of billProducts) {
+          const doc = await createSingleProduct(product, { save: false });
+          preparedProducts.push(doc);
+        }
+
+        /* ---------------------------------------------- */
+        /* INSERT PRODUCTS                                */
+        /* ---------------------------------------------- */
+
+        const insertedProducts = await Product.insertMany(preparedProducts, { ordered: false });
+
+        /* ---------------------------------------------- */
+        /* UPDATE SUPPLIER PAYABLE                        */
+        /* ---------------------------------------------- */
+
+        await Promise.all(
+          insertedProducts.map(async (product) => {
+            const supplier = await User.findById(product.supplier._id);
+
+            const paidAmounts = supplier.paid_amount.reduce(
+              (sum, payment) => sum + payment.amount,
+              0
+            );
+
+            supplier.payable_amount =
+              (parseFloat(supplier.payable_amount) || 0) +
+              parseFloat(product.purchase_price || 0);
+
+            supplier.pending_amount = supplier.payable_amount - paidAmounts;
+
+            supplier.products.push(product._id);
+
+            await supplier.save();
+          })
+        );
+
+        /* ---------------------------------------------- */
+        /* BILLING CALCULATIONS                           */
+        /* ---------------------------------------------- */
+
+        const payable_amount = billProducts.reduce(
+          (sum, p) => sum + parseFloat(p.sold_at_price || 0),
+          0
+        );
+
+        const cashAmount = Math.round(payable_amount * 0.20);
+        const onlineAmount = payable_amount - cashAmount;
+
+        const paid_amount = [
+          { method: "cash", amount: cashAmount },
+          { method: "online", amount: onlineAmount }
+        ];
+
+        const pending_amount = 0;
+
+        /* ---------------------------------------------- */
+        /* PROFIT CALCULATION                             */
+        /* ---------------------------------------------- */
+
+        const totalGSTPurchasePrice = insertedProducts.reduce(
+          (sum, p) =>
+            sum + parseFloat(p.gst_purchase_price || p.purchase_price || 0),
+          0
+        );
+
+        const totalPurchasePriceIncludingExpenses = insertedProducts.reduce(
+          (sum, p) =>
+            sum + parseFloat(p.purchase_cost_including_expenses || p.purchase_price || 0),
+          0
+        );
+
+        const profitToShow = payable_amount - totalGSTPurchasePrice;
+
+        const actualProfit = payable_amount - totalPurchasePriceIncludingExpenses;
+
+        /* ---------------------------------------------- */
+        /* GST CALCULATION                                */
+        /* ---------------------------------------------- */
+
+        let c_gst = 0;
+        let s_gst = 0;
+        let net_total = payable_amount;
+
+        if (profitToShow > 0) {
+
+          c_gst = profitToShow * 0.09;
+          s_gst = profitToShow * 0.09;
+
+          net_total = payable_amount + c_gst + s_gst;
+
+        }
+
+        /* ---------------------------------------------- */
+        /* CREATE BILLING                                 */
+        /* ---------------------------------------------- */
+
+        const billing = new Billing({
+          invoice_number: bill.bill_id,
+          customer: customerId,
+          products: insertedProducts.map(p => p._id),
+          payable_amount,
+          pending_amount,
+          paid_amount,
+          status: "PAID",
+          profitToShow: profitToShow,
+          actualProfit: actualProfit,
+          net_total,
+          c_gst: c_gst,
+          s_gst: s_gst,
+          created_at: createdAt,
+          updated_at: updatedAt    // <-- FIXED: was "update_at"
+        });
+
+        await billing.save();
+
+        /* ---------------------------------------------- */
+        /* MARK PRODUCTS SOLD                             */
+        /* ---------------------------------------------- */
+
+        await Promise.all(
+          insertedProducts.map(async (product, index) => {
+            product.status = "SOLD";
+            product.sold_at_price = billProducts[index].sold_at_price;
+            product.updated_at = updatedAt;
+            await product.save();
+          })
+        );
+
+        return {
+          bill_id: bill.bill_id,
+          customer: bill.customer_name,
+          productsInserted: insertedProducts.length,
+          billingId: billing._id
+        };
+
+      })
+    );
+
+    /* -------------------------------------------------- */
+    /* FINAL RESPONSE                                     */
+    /* -------------------------------------------------- */
+
+    res.status(200).json({
+      message: "Products inserted and billing created successfully",
+      totalBills: billingResults.length,
+      results: billingResults
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      error: err.message
+    });
+
   }
 };

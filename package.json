@@ -15,10 +15,12 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "fs": "^0.0.1-security",
     "jsonwebtoken": "^9.0.3",
     "moment": "^2.30.1",
     "mongoose": "^8.16.0",
-    "whatsapp": "^0.0.5-Alpha"
+    "whatsapp": "^0.0.5-Alpha",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
