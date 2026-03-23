@@ -744,32 +744,57 @@ export const deleteBilling = async (req, res) => {
 export const createBulkProductsAndBilling = async (req, res) => {
   try {
 
-    const products = req.body;
+    const bulkLog = (...args) => console.log(`[bulk-billing ${new Date().toISOString()}]`, ...args);
+    const billLog = (billId, ...args) =>
+      console.log(`[bulk-billing ${new Date().toISOString()} bill_id=${billId}]`, ...args);
+
+    bulkLog("START createBulkProductsAndBilling");
+
+    if (!req.file) {
+      bulkLog("STOP: req.file missing");
+      return res.status(400).json({
+        error: "JSON file is required"
+      });
+    }
+
+    let products;
+
+    try {
+      products = JSON.parse(req.file.buffer.toString());
+    } catch (err) {
+      bulkLog("STOP: invalid JSON file", err?.message);
+      return res.status(400).json({
+        error: "Invalid JSON file"
+      });
+    }
 
     if (!Array.isArray(products) || products.length === 0) {
+      bulkLog("STOP: products array missing/empty");
       return res.status(400).json({
         error: "Products array is required"
       });
     }
 
+    bulkLog("Parsed products:", products.length);
+
     /* -------------------------------------------------- */
     /* 1. CHECK DUPLICATE IMEI IN INPUT                   */
     /* -------------------------------------------------- */
 
-    const seen = new Set();
+    // const seen = new Set();
 
-    for (let i = 0; i < products.length; i++) {
+    // for (let i = 0; i < products.length; i++) {
 
-      const imei = products[i].imei_number;
+    //   const imei = products[i].imei_number;
 
-      if (seen.has(imei)) {
-        return res.status(400).json({
-          error: `Duplicate imei_number '${imei}' found at index ${i}`
-        });
-      }
+    //   if (seen.has(imei)) {
+    //     return res.status(400).json({
+    //       error: `Duplicate imei_number '${imei}' found at index ${i}`
+    //     });
+    //   }
 
-      seen.add(imei);
-    }
+    //   seen.add(imei);
+    // }
 
     /* -------------------------------------------------- */
     /* 2. MAP BILL_ID WITH PRODUCTS + BILL INFO           */
@@ -780,6 +805,10 @@ export const createBulkProductsAndBilling = async (req, res) => {
     for (const product of products) {
 
       const billId = product.bill_id || product.invoice_number;
+      if (!billId) {
+        bulkLog("STOP: missing bill_id/invoice_number on product", product);
+        return res.status(400).json({ error: "bill_id or invoice_number is required for each product" });
+      }
 
       if (!billMap[billId]) {
 
@@ -797,12 +826,14 @@ export const createBulkProductsAndBilling = async (req, res) => {
     }
 
     const bills = Object.values(billMap);
+    bulkLog("Grouped bills:", bills.length);
 
     /* -------------------------------------------------- */
     /* 3. FETCH CUSTOMER IDs USING CUSTOMER NAME          */
     /* -------------------------------------------------- */
 
     const customerNames = [...new Set(bills.map(b => b.customer_name))];
+    bulkLog("Unique customer names:", customerNames.length);
 
     const customers = await User.find({
       name: { $in: customerNames }
@@ -814,198 +845,259 @@ export const createBulkProductsAndBilling = async (req, res) => {
       customerLookup[customer.name] = customer._id;
     });
 
+    bulkLog("Existing customers found:", customers.length);
+
     /* -------------------------------------------------- */
-    /* 4. PROCESS EACH BILL                               */
+    /* 4. PROCESS EACH BILL (SEQUENTIALLY PER BILL_ID)    */
     /* -------------------------------------------------- */
 
-    const billingResults = await Promise.all(
-      bills.map(async (bill) => {
-        const billProducts = bill.products;
+    const billingResults = [];
 
-        const createdAt = bill.billing_created_at
-          ? moment(bill.billing_created_at).valueOf()
-          : moment().valueOf();
+    for (const bill of bills) {
+      billLog(bill.bill_id, "START bill processing", "products:", bill.products?.length);
+      const billProducts = bill.products;
+      const billImeis = billProducts.map(p => p.imei_number);
 
-        const updatedAt = bill.billing_updated_at
-          ? moment(bill.billing_updated_at).valueOf()
-          : moment().valueOf();
+      const createdAt = bill.billing_created_at
+        ? moment(bill.billing_created_at).valueOf()
+        : moment().valueOf();
 
-        let customerId = customerLookup[bill.customer_name];
+      const updatedAt = bill.billing_updated_at
+        ? moment(bill.billing_updated_at).valueOf()
+        : moment().valueOf();
 
-        // Get the role id of the customer
-        let customerRoleId = null;
-        if (customerId) {
-          const customerDoc = await UserRole.findOne({ name: "CUSTOMER" });
-          if (customerDoc) {
-            customerRoleId = customerDoc._id;
-          }
+      let customerId = customerLookup[bill.customer_name];
+
+      // Get the role id of the customer
+      let customerRoleId = null;
+      if (customerId) {
+        billLog(bill.bill_id, "Customer exists:", bill.customer_name, customerId?.toString?.() || customerId);
+        const customerDoc = await UserRole.findOne({ name: "CUSTOMER" });
+        if (customerDoc) {
+          customerRoleId = customerDoc._id;
         }
+      }
 
-        if (!customerId) {
-          const newCustomer = new User({
-            name: bill.customer_name,
-            role: customerRoleId,
-            created_at: createdAt,
-            updated_at: updatedAt
-          });
-
-          await newCustomer.save();
-
-          customerId = newCustomer._id;
-
-          // update lookup so next bill with same customer won't create again
-          customerLookup[bill.customer_name] = customerId;
-        }
-
-
-        /* ---------------------------------------------- */
-        /* PREPARE PRODUCTS                               */
-        /* ---------------------------------------------- */
-
-        const preparedProducts = [];
-
-        for (const product of billProducts) {
-          const doc = await createSingleProduct(product, { save: false });
-          preparedProducts.push(doc);
-        }
-
-        /* ---------------------------------------------- */
-        /* INSERT PRODUCTS                                */
-        /* ---------------------------------------------- */
-
-        const insertedProducts = await Product.insertMany(preparedProducts, { ordered: false });
-
-        /* ---------------------------------------------- */
-        /* UPDATE SUPPLIER PAYABLE                        */
-        /* ---------------------------------------------- */
-
-        await Promise.all(
-          insertedProducts.map(async (product) => {
-            const supplier = await User.findById(product.supplier._id);
-
-            const paidAmounts = supplier.paid_amount.reduce(
-              (sum, payment) => sum + payment.amount,
-              0
-            );
-
-            supplier.payable_amount =
-              (parseFloat(supplier.payable_amount) || 0) +
-              parseFloat(product.purchase_price || 0);
-
-            supplier.pending_amount = supplier.payable_amount - paidAmounts;
-
-            supplier.products.push(product._id);
-
-            await supplier.save();
-          })
-        );
-
-        /* ---------------------------------------------- */
-        /* BILLING CALCULATIONS                           */
-        /* ---------------------------------------------- */
-
-        const payable_amount = billProducts.reduce(
-          (sum, p) => sum + parseFloat(p.sold_at_price || 0),
-          0
-        );
-
-        const cashAmount = Math.round(payable_amount * 0.20);
-        const onlineAmount = payable_amount - cashAmount;
-
-        const paid_amount = [
-          { method: "cash", amount: cashAmount },
-          { method: "online", amount: onlineAmount }
-        ];
-
-        const pending_amount = 0;
-
-        /* ---------------------------------------------- */
-        /* PROFIT CALCULATION                             */
-        /* ---------------------------------------------- */
-
-        const totalGSTPurchasePrice = insertedProducts.reduce(
-          (sum, p) =>
-            sum + parseFloat(p.gst_purchase_price || p.purchase_price || 0),
-          0
-        );
-
-        const totalPurchasePriceIncludingExpenses = insertedProducts.reduce(
-          (sum, p) =>
-            sum + parseFloat(p.purchase_cost_including_expenses || p.purchase_price || 0),
-          0
-        );
-
-        const profitToShow = payable_amount - totalGSTPurchasePrice;
-
-        const actualProfit = payable_amount - totalPurchasePriceIncludingExpenses;
-
-        /* ---------------------------------------------- */
-        /* GST CALCULATION                                */
-        /* ---------------------------------------------- */
-
-        let c_gst = 0;
-        let s_gst = 0;
-        let net_total = payable_amount;
-
-        if (profitToShow > 0) {
-
-          c_gst = profitToShow * 0.09;
-          s_gst = profitToShow * 0.09;
-
-          net_total = payable_amount + c_gst + s_gst;
-
-        }
-
-        /* ---------------------------------------------- */
-        /* CREATE BILLING                                 */
-        /* ---------------------------------------------- */
-
-        const billing = new Billing({
-          invoice_number: bill.bill_id,
-          customer: customerId,
-          products: insertedProducts.map(p => p._id),
-          payable_amount,
-          pending_amount,
-          paid_amount,
-          status: "PAID",
-          profitToShow: profitToShow,
-          actualProfit: actualProfit,
-          net_total,
-          c_gst: c_gst,
-          s_gst: s_gst,
+      if (!customerId) {
+        billLog(bill.bill_id, "Customer not found, creating:", bill.customer_name);
+        const newCustomer = new User({
+          name: bill.customer_name,
+          role: customerRoleId,
           created_at: createdAt,
-          updated_at: updatedAt    // <-- FIXED: was "update_at"
+          updated_at: updatedAt
         });
 
-        await billing.save();
+        await newCustomer.save();
 
-        /* ---------------------------------------------- */
-        /* MARK PRODUCTS SOLD                             */
-        /* ---------------------------------------------- */
+        customerId = newCustomer._id;
+        billLog(bill.bill_id, "Customer created:", customerId?.toString?.() || customerId);
 
-        await Promise.all(
-          insertedProducts.map(async (product, index) => {
-            product.status = "SOLD";
-            product.sold_at_price = billProducts[index].sold_at_price;
-            product.updated_at = updatedAt;
-            await product.save();
-          })
-        );
+        // update lookup so next bill with same customer won't create again
+        customerLookup[bill.customer_name] = customerId;
+      }
 
-        return {
-          bill_id: bill.bill_id,
-          customer: bill.customer_name,
-          productsInserted: insertedProducts.length,
-          billingId: billing._id
-        };
 
-      })
-    );
+      /* ---------------------------------------------- */
+      /* PICK AVAILABLE PRODUCTS OR PREPARE NEW ONES    */
+      /* ---------------------------------------------- */
+
+      // If same IMEI exists with SOLD + AVAILABLE, we must use ONLY the AVAILABLE/RETURN one.
+      billLog(bill.bill_id, "Finding existing AVAILABLE/RETURN products:", billImeis.length);
+      const existingAvailable = await Product.find({
+        imei_number: { $in: billImeis },
+        status: { $in: ['AVAILABLE', 'RETURN'] }
+      });
+      billLog(bill.bill_id, "Existing AVAILABLE/RETURN found:", existingAvailable.length);
+
+      const existingByImei = {};
+      for (const p of existingAvailable) existingByImei[p.imei_number] = p;
+
+      const preparedProducts = []; // only for IMEIs that don't have an available/return product
+      const toCreateImeis = [];
+
+      billLog(bill.bill_id, "Preparing products to insert (skipping reused)");
+      for (const product of billProducts) {
+        const imei = product.imei_number;
+        if (existingByImei[imei]) continue;
+        const doc = await createSingleProduct(product, { save: false });
+        preparedProducts.push(doc);
+        toCreateImeis.push(imei);
+      }
+      billLog(bill.bill_id, "Prepared for insert:", preparedProducts.length);
+
+      /* ---------------------------------------------- */
+      /* INSERT PRODUCTS                                */
+      /* ---------------------------------------------- */
+
+      billLog(bill.bill_id, "InsertMany start", "ordered:false");
+      const insertedProducts = preparedProducts.length > 0
+        ? await Product.insertMany(preparedProducts, { ordered: false })
+        : [];
+      billLog(bill.bill_id, "InsertMany done:", insertedProducts.length);
+
+      const insertedByImei = {};
+      for (const p of insertedProducts) insertedByImei[p.imei_number] = p;
+
+      /* ---------------------------------------------- */
+      /* UPDATE SUPPLIER PAYABLE                        */
+      /* ---------------------------------------------- */
+
+      billLog(bill.bill_id, "Updating supplier payable for inserted products:", insertedProducts.length);
+      await Promise.all(
+        insertedProducts.map(async (product) => {
+          const supplier = await User.findById(product.supplier._id);
+
+          const paidAmounts = supplier.paid_amount.reduce(
+            (sum, payment) => sum + payment.amount,
+            0
+          );
+
+          supplier.payable_amount =
+            (parseFloat(supplier.payable_amount) || 0) +
+            parseFloat(product.purchase_price || 0);
+
+          supplier.pending_amount = supplier.payable_amount - paidAmounts;
+
+          supplier.products.push(product._id);
+
+          await supplier.save();
+        })
+      );
+      billLog(bill.bill_id, "Supplier payable updates done");
+
+      /* ---------------------------------------------- */
+      /* BILLING CALCULATIONS                           */
+      /* ---------------------------------------------- */
+
+      billLog(bill.bill_id, "Calculating bill totals");
+      const payable_amount = billProducts.reduce(
+        (sum, p) => sum + parseFloat(p.sold_at_price || 0),
+        0
+      );
+
+      const cashAmount = Math.round(payable_amount * 0.20);
+      const onlineAmount = payable_amount - cashAmount;
+
+      const paid_amount = [
+        { method: "cash", amount: cashAmount },
+        { method: "online", amount: onlineAmount }
+      ];
+
+      const pending_amount = 0;
+
+      /* ---------------------------------------------- */
+      /* BUILD BILL PRODUCTS (PRESERVE INPUT ORDER)      */
+      /* ---------------------------------------------- */
+
+      billLog(bill.bill_id, "Resolving finalProducts from reused/inserted");
+      const finalProducts = billProducts.map((bp) => {
+        const imei = bp.imei_number;
+        return existingByImei[imei] || insertedByImei[imei];
+      }).filter(Boolean);
+
+      const missingImeis = billImeis.filter((imei) => !existingByImei[imei] && !insertedByImei[imei]);
+      if (missingImeis.length > 0) {
+        billLog(bill.bill_id, "STOP: missing product docs for imeis:", missingImeis);
+        throw new Error(`Some products could not be resolved for billing: ${missingImeis.join(', ')}`);
+      }
+      billLog(bill.bill_id, "finalProducts resolved:", finalProducts.length);
+
+      /* ---------------------------------------------- */
+      /* PROFIT CALCULATION                             */
+      /* ---------------------------------------------- */
+
+      const totalGSTPurchasePrice = finalProducts.reduce(
+        (sum, p) =>
+          sum + parseFloat(p.gst_purchase_price || p.purchase_price || 0),
+        0
+      );
+
+      const totalPurchasePriceIncludingExpenses = finalProducts.reduce(
+        (sum, p) =>
+          sum + parseFloat(p.purchase_cost_including_expenses || p.purchase_price || 0),
+        0
+      );
+
+      const profitToShow = payable_amount - totalGSTPurchasePrice;
+
+      const actualProfit = payable_amount - totalPurchasePriceIncludingExpenses;
+
+      /* ---------------------------------------------- */
+      /* GST CALCULATION                                */
+      /* ---------------------------------------------- */
+
+      let c_gst = 0;
+      let s_gst = 0;
+      let net_total = payable_amount;
+
+      if (profitToShow > 0) {
+
+        c_gst = profitToShow * 0.09;
+        s_gst = profitToShow * 0.09;
+
+        net_total = payable_amount + c_gst + s_gst;
+
+      }
+
+      /* ---------------------------------------------- */
+      /* CREATE BILLING                                 */
+      /* ---------------------------------------------- */
+
+      billLog(bill.bill_id, "Creating Billing doc");
+      const billing = new Billing({
+        invoice_number: bill.bill_id,
+        customer: customerId,
+        products: finalProducts.map(p => p._id),
+        payable_amount,
+        pending_amount,
+        paid_amount,
+        status: "PAID",
+        profitToShow: profitToShow,
+        actualProfit: actualProfit,
+        net_total,
+        c_gst: c_gst,
+        s_gst: s_gst,
+        created_at: createdAt,
+        updated_at: updatedAt    // <-- FIXED: was "update_at"
+      });
+
+      await billing.save();
+      billLog(bill.bill_id, "Billing saved:", billing._id?.toString?.() || billing._id);
+
+      /* ---------------------------------------------- */
+      /* MARK PRODUCTS SOLD                             */
+      /* ---------------------------------------------- */
+
+      billLog(bill.bill_id, "Marking products SOLD:", finalProducts.length);
+      const soldAtPriceByImei = {};
+      for (const bp of billProducts) soldAtPriceByImei[bp.imei_number] = bp.sold_at_price;
+
+      await Promise.all(
+        finalProducts.map(async (product) => {
+          product.status = "SOLD";
+          product.sold_at_price = soldAtPriceByImei[product.imei_number];
+          product.updated_at = updatedAt;
+          await product.save();
+        })
+      );
+      billLog(bill.bill_id, "Products marked SOLD");
+
+      billingResults.push({
+        bill_id: bill.bill_id,
+        customer: bill.customer_name,
+        productsInserted: insertedProducts.length,
+        productsReused: Object.keys(existingByImei).length,
+        billingId: billing._id
+      });
+      billLog(bill.bill_id, "DONE bill processing");
+
+    }
 
     /* -------------------------------------------------- */
     /* FINAL RESPONSE                                     */
     /* -------------------------------------------------- */
 
+    bulkLog("DONE all bills", "totalBills:", billingResults.length);
     res.status(200).json({
       message: "Products inserted and billing created successfully",
       totalBills: billingResults.length,
@@ -1013,6 +1105,7 @@ export const createBulkProductsAndBilling = async (req, res) => {
     });
 
   } catch (err) {
+    console.error(`[bulk-billing ${new Date().toISOString()}] ERROR`, err);
     res.status(500).json({
       error: err.message
     });

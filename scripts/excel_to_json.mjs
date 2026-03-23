@@ -33,13 +33,13 @@ try {
     accessories: row["Accessories"] ? row["Accessories"].trim().toUpperCase() : "",
     supplier_name: row["Supplier"] ? row["Supplier"].trim().toUpperCase() : "",
     qc_remark: row["QC Remark"],
-    product_created_at: moment.utc(row["Date"], "DD/MM/YYYY").subtract(3, 'days').startOf('day').valueOf(),
-    product_updated_at: moment.utc(row["Date"], "DD/MM/YYYY").subtract(3, 'days').startOf('day').valueOf(),
+    product_created_at: moment.utc(row["Date"], "MMM D, YYYY").subtract(3, 'days').startOf('day').valueOf(),
+    product_updated_at: moment.utc(row["Date"], "MMM D, YYYY").subtract(3, 'days').startOf('day').valueOf(),
 
     bill_id: row["Bill No"],
     customer_name: row["Customer Name"],
-    billing_created_at: moment.utc(row["Date"], "DD/MM/YYYY").startOf('day').valueOf(),
-    billing_updated_at: moment.utc(row["Date"], "DD/MM/YYYY").startOf('day').valueOf(),
+    billing_created_at: moment.utc(row["Date"], "MMM D, YYYY").startOf('day').valueOf(),
+    billing_updated_at: moment.utc(row["Date"], "MMM D, YYYY").startOf('day').valueOf(),
   }));
   fs.writeFileSync(`${xlsxPath}.json`, JSON.stringify(bulkOfProductformatteddata, null, 2), "utf8");
   console.log(`Successfully wrote JSON for the first sheet of "July (1).xlsx" to ${xlsxPath}.json`);
