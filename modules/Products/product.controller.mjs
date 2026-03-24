@@ -249,7 +249,7 @@ export const createBulkProducts = async (req, res) => {
     const result = await Product.insertMany(prepared, { ordered: false });
 
     console.log('result: ', result)
-    for (singleProduct of result) {
+    for (let singleProduct of result) {
       const supplier = await User.findById(singleProduct.supplier._id);
       console.log('supplier: ', supplier)
 
