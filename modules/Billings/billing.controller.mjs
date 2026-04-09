@@ -210,10 +210,11 @@ export const createBilling = async (req, res) => {
 
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
     const totalPurchasePriceIncludingExpenses = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_cost_including_expenses), 0);
+    const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
     console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
 
     const profitToShow = totalCost - totalGSTPurchasePrice;
-    const actualProfit = totalCost - totalPurchasePriceIncludingExpenses;
+    const actualProfit = totalCost - totalPurchasePrice;
 
     let billStatus = status;
     if (pending_amount > 0 && billStatus !== "DRAFTED") {
