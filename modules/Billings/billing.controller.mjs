@@ -198,7 +198,10 @@ export const createBilling = async (req, res) => {
       }
       console.log("singleProduct", singleProduct);
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: product.purchase_cost_including_expenses || product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
+      foundProducts.push({
+        productId: product._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: product.purchase_cost_including_expenses || product.purchase_price,
+        gst_purchase_price: product.gst_purchase_price || product.purchase_price, purchase_price: product.purchase_price
+      });
 
       updatedProducts.push(product);
     }
@@ -245,11 +248,11 @@ export const createBilling = async (req, res) => {
       pending_amount: pending_amount,
       paid_amount,
       status: billStatus,
-      profitToShow: profitToShow.toString(),
-      actualProfit: actualProfit.toString(),
+      profitToShow: profitToShow,
+      actualProfit: actualProfit,
       net_total,
-      c_gst: c_gst.toString(),
-      s_gst: s_gst.toString(),
+      c_gst: c_gst,
+      s_gst: s_gst,
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
@@ -399,10 +402,8 @@ export const updateBilling = async (req, res) => {
       const finalRate = incomingRateMap[imei];
 
       foundProducts.push({
-        productId: p._id,
-        final_rate: finalRate,
-        purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
-        gst_purchase_price: p.gst_purchase_price || p.purchase_cost_including_expenses || p.purchase_price
+        productId: p._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
+        gst_purchase_price: p.gst_purchase_price || p.purchase_price, purchase_price: p.purchase_price
       });
 
       updatedProducts.push(p);
@@ -455,11 +456,11 @@ export const updateBilling = async (req, res) => {
       paid_amount: numericPaidArray,
       advance_amount,
       status,
-      actualProfit: actualProfit.toString(),
-      profitToShow: profitToShow.toString(),
+      actualProfit: actualProfit,
+      profitToShow: profitToShow,
       net_total,
-      c_gst: c_gst.toString(),
-      s_gst: s_gst.toString(),
+      c_gst: c_gst,
+      s_gst: s_gst,
       updated_at: moment.utc().valueOf()
     };
 
