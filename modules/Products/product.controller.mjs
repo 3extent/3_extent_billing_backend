@@ -2,6 +2,7 @@ import moment from 'moment';
 import Product from './Product.mjs';
 import User from '../Users/User.mjs';
 import Model from '../Models/Model.mjs';
+import Brand from '../Brands/Brand.mjs';
 
 import {
   createSingleProduct
