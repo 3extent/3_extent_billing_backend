@@ -7,7 +7,7 @@ import {
   updateUser,
   updateUserPayment,
   addPartUser,
-  // addPart
+  getUserParts,
 } from './user.controller.mjs';
 import { verifyToken } from '../../middlewares/authMiddleware.mjs';
 const router = express.Router();
@@ -19,6 +19,7 @@ router.get('/:id', verifyToken, getUserById);
 router.put('/:id', verifyToken, updateUser);
 router.put('/payment/:id', verifyToken, updateUserPayment);
 router.post('/parts', verifyToken, addPartUser);
+router.get("/parts", getUserParts );
 
 
 
