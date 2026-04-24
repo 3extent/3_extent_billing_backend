@@ -15,11 +15,12 @@ const router = express.Router();
 router.get('/', verifyToken, getUsers);
 router.post('/login', loginUser);
 router.post('/', verifyToken, createUser);
+router.post('/parts', verifyToken, addPartUser);
+router.get("/parts", verifyToken, getUserParts );
 router.get('/:id', verifyToken, getUserById);
 router.put('/:id', verifyToken, updateUser);
 router.put('/payment/:id', verifyToken, updateUserPayment);
-router.post('/parts', verifyToken, addPartUser);
-router.get("/parts", getUserParts );
+
 
 
 

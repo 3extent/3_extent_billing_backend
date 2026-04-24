@@ -413,10 +413,10 @@ export const addPartUser = async (req, res) => {
   }
 };
 
-// GET /api/users/parts
+// GET /users/parts
 export const getUserParts = async (req, res) => {
   try {
-    const userId = req.user.userId; // from JWT middleware
+    const userId = req.user.userId;
 
     const user = await User.findById(userId)
       .populate({
@@ -432,9 +432,11 @@ export const getUserParts = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    res.json({
-      total_parts: user.parts.length,
-      parts: user.parts
+    const parts = user.parts || [];
+
+    res.status(200).json({
+      total_parts: parts.length,
+      parts
     });
 
   } catch (err) {
