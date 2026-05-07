@@ -400,7 +400,8 @@ export const updateProductForRepair = async (req, res) => {
         return {
           shop: shopMap[part.shop_name.trim()],
           part_name: part.part_name,
-          cost
+          cost,
+          status: "SOLD"
         };
       });
     }
@@ -469,6 +470,8 @@ export const updateProductForRepair = async (req, res) => {
     repairer.updated_at = moment.utc().valueOf();
     await repairer.save();
 
+
+
     // ✅ Update shops with repair activities (SAFE)
     for (const singleEle of rebuiltRepairParts) {
       await User.findByIdAndUpdate(
@@ -489,6 +492,44 @@ export const updateProductForRepair = async (req, res) => {
           }
         }
       );
+    }
+
+     const shopNames = [...new Set(
+      repair_parts.map(p => p.shop_name?.trim()).filter(Boolean)
+    )];
+
+    const shops = await User.find({
+      name: { $in: shopNames }
+    });
+
+    for (const rp of repair_parts) {
+      const shop = shops.find(
+        s => s.name?.trim() === rp.shop_name?.trim()
+      );
+
+      if (!shop) continue;
+
+      let changed = false;
+
+      shop.parts = (shop.parts || []).map(part => {
+        const match =
+          part.part_name?.trim().toLowerCase() ===
+          rp.part_name?.trim().toLowerCase();
+
+        if (match) {
+          changed = true;
+          return {
+            ...part.toObject(),
+            status: "SOLD"
+          };
+        }
+
+        return part;
+      });
+
+      if (changed) {
+        await shop.save();
+      }
     }
 
     res.json(product);
