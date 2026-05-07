@@ -372,7 +372,7 @@ export const updateUserPayment = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-
+// POST /api/users/parts
 export const addPartUser = async (req, res) => {
   try {
     const { part_name, part_cost, shop_name, model_name } = req.body;
@@ -422,6 +422,8 @@ export const addPartUser = async (req, res) => {
     });
   }
 };
+
+// GET /api/users/parts
 
 export const getUserParts = async (req, res) => {
   try {
