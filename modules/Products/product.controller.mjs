@@ -495,16 +495,16 @@ export const updateProductForRepair = async (req, res) => {
     }
 
      const shopNames = [...new Set(
-      repair_parts.map(p => p.shop_name?.trim()).filter(Boolean)
+      repair_parts.map(part => part.shop_name?.trim()).filter(Boolean)
     )];
 
     const shops = await User.find({
       name: { $in: shopNames }
     });
 
-    for (const rp of repair_parts) {
+    for (const repairPart of repair_parts) {
       const shop = shops.find(
-        s => s.name?.trim() === rp.shop_name?.trim()
+        shop => shop.name?.trim() === repairPart.shop_name?.trim()
       );
 
       if (!shop) continue;
@@ -514,7 +514,7 @@ export const updateProductForRepair = async (req, res) => {
       shop.parts = (shop.parts || []).map(part => {
         const match =
           part.part_name?.trim().toLowerCase() ===
-          rp.part_name?.trim().toLowerCase();
+          repairPart.part_name?.trim().toLowerCase();
 
         if (match) {
           changed = true;
