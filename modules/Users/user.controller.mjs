@@ -7,6 +7,8 @@ import Brand from '../Brands/Brand.mjs';
 import Model from '../Models/Model.mjs';
 import Role from '../UserRoles/UserRole.mjs';
 
+
+
 // POST /api/users/login
 export const loginUser = async (req, res) => {
   try {
@@ -361,5 +363,105 @@ export const updateUserPayment = async (req, res) => {
     res.json(updatedUser);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+// POST /api/users/parts
+export const addPartUser = async (req, res) => {
+  try {
+    const { part_name, part_cost, shop_name, model_name } = req.body;
+
+    // Find shop by name
+    const shop = await User.findOne({ name: shop_name });
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    // Find model
+    const model = await Model.findOne({ name: model_name });
+    if (!model) {
+      return res.status(404).json({ message: "Model not found" });
+    }
+
+    // Add part to shop
+    const newPart = {
+      part_name,
+      part_cost,
+      shop: shop._id,
+      model: model._id,
+      status: "AVAILABLE"
+    };
+
+    shop.parts.push(newPart);
+
+
+    await shop.save();
+
+    // Populate response
+    const populatedShop = await User.findById(shop._id)
+      .populate("parts.shop", "name")
+      .populate("parts.model", "name");
+
+    res.status(200).json({
+      success: true,
+      message: "Part added successfully",
+      data: populatedShop
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+
+// GET /api/users/parts
+
+export const getUserParts = async (req, res) => {
+  try {
+    const { shop, status } = req.query;
+
+    const users = await User.find()
+      .populate("parts.shop", "name contact_number")
+      .populate("parts.model", "name");
+
+    let allParts = [];
+
+    users.forEach(user => {
+      if (user.parts && user.parts.length > 0) {
+        const partsWithShopInfo = user.parts.map(part => ({
+          ...part._doc,
+          shop_name: user.name
+        }));
+
+        allParts.push(...partsWithShopInfo);
+      }
+    });
+
+
+    if (shop) {
+      allParts = allParts.filter(p =>
+        p.shop_name &&
+        p.shop_name.toLowerCase().includes(shop.toLowerCase())
+      );
+    }
+
+    if (status) {
+      allParts = allParts.filter(p =>
+        p.status && p.status === status
+      );
+    }
+
+    res.status(200).json({
+      total_parts: allParts.length,
+      parts: allParts
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
   }
 };

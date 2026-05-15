@@ -43,6 +43,20 @@ const userSchema = new mongoose.Schema({
     cost: { type: Number, default: 0 },
     repairer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   }],
+ 
+  parts: [{
+    part_name: String,
+    part_cost: { type: Number, default: 0 },
+    shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    model: { type: mongoose.Schema.Types.ObjectId, ref: 'Model' },
+
+    status: {
+    type: String,
+    enum: ["AVAILABLE", "SOLD"],
+    default: "AVAILABLE"
+  }
+  }],
+
   created_at: { type: Number, default: moment.utc().valueOf() },
   updated_at: { type: Number, default: moment.utc().valueOf() },
   created_by: String
