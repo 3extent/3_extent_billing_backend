@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
 
 const userRoleSchema = new mongoose.Schema({
     name: String,
@@ -8,8 +8,10 @@ const userRoleSchema = new mongoose.Schema({
         show_table_columns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TableColumn' }],
         hidden_dropdown_table_columns: [{ type: mongoose.Schema.Types.ObjectId, ref: 'TableColumn' }]
     }],
+
     created_at: { type: Number, default: moment.utc().valueOf() },
     updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('UserRole', userRoleSchema);
+const UserRole = mongoose.model('UserRole', userRoleSchema);
+export default UserRole;

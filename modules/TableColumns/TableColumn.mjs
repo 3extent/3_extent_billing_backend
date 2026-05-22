@@ -1,5 +1,6 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
+
 
 const tableColumnSchema = new mongoose.Schema({
   name: String,
@@ -7,4 +8,5 @@ const tableColumnSchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
-module.exports = mongoose.model('TableColumn', tableColumnSchema);
+const TableColumn = mongoose.model('TableColumn', tableColumnSchema);
+export default TableColumn;

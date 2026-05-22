@@ -1,12 +1,12 @@
-const express = require('express');
-const router = express.Router();
-const Billing = require('../models/Billing');
-const User = require('../models/User');
-const Product = require('../models/Product');
-const moment = require('moment');
+import moment from 'moment';
+import Billing from './Billing.mjs';
+import User from '../Users/User.mjs';
+import Product from '../Products/Product.mjs';
 
-// GET /api/billings
-router.get('/', async (req, res) => {
+/* ======================================================
+   GET /api/billings
+====================================================== */
+export const getBillings = async (req, res) => {
   try {
     const {
       customer_name,
@@ -19,41 +19,35 @@ router.get('/', async (req, res) => {
 
     const filter = {};
 
-
-    // If user explicitly passes status param — override (or include) as needed
     if (status) {
       filter.status = status;
     } else {
-      // By default exclude DRAFTED and REMOVED_DRAFTED
       filter.status = { $nin: ['DRAFTED', 'REMOVED_DRAFTED', 'REMOVED_CHECKOUT'] };
-
     }
 
-    // Customer filter
+    // -------- CUSTOMER FILTER --------
     if (customer_name || contact_number) {
       const userQuery = {};
-      if (customer_name) {
-        userQuery.name = { $regex: customer_name, $options: 'i' };
-      }
-      if (contact_number) {
-        userQuery.contact_number = { $regex: contact_number, $options: 'i' };
-      }
-      const userFromDB = await User.findOne(userQuery).select('_id');
-      if (!userFromDB) {
-        return res.json({ billings: [], totalAmount: 0, totalRemaining: 0, totalProfit: 0, totalProducts: 0 });
+      if (customer_name) userQuery.name = { $regex: customer_name, $options: 'i' };
+      if (contact_number) userQuery.contact_number = { $regex: contact_number, $options: 'i' };
+
+      const usersFromDB = await User.find(userQuery).select('_id');
+      if (!usersFromDB.length) {
+        return res.json({
+          billings: [],
+          totalAmount: 0,
+          totalRemaining: 0,
+          totalProfit: 0,
+          totalProducts: 0
+        });
       }
 
-      filter.customer = {
-        $in: usersFromDB.map(user => user._id)
-      };
+      filter.customer = { $in: usersFromDB.map(u => u._id) };
     }
 
-    // IMEI / product filter
+    // -------- IMEI FILTER --------
     if (imei_number) {
-      const productsFromDB = await Product
-        .find({ imei_number })
-        .select('_id');
-
+      const productsFromDB = await Product.find({ imei_number }).select('_id');
       if (!productsFromDB.length) {
         return res.json({
           billings: [],
@@ -64,143 +58,86 @@ router.get('/', async (req, res) => {
         });
       }
 
-      filter.products = {
-        $in: productsFromDB.map(product => product._id)
-      };
+      filter.products = { $in: productsFromDB.map(p => p._id) };
     }
 
-    /* ---------------------------------------------------
-       4️⃣ DATE RANGE FILTER
-    --------------------------------------------------- */
+    // -------- DATE FILTER --------
     if (from || to) {
-      const range = {};
-
-      if (from && !Number.isNaN(Number(from))) {
-        range.$gte = Number(from);
-      }
-
-      if (to && !Number.isNaN(Number(to))) {
-        range.$lte = Number(to);
-      }
-
-      if (Object.keys(range).length) {
-        filter.created_at = range;
-      }
+      filter.created_at = {};
+      if (from) filter.created_at.$gte = Number(from);
+      if (to) filter.created_at.$lte = Number(to);
     }
 
     const billings = await Billing.find(filter)
       .populate('customer')
       .populate({
         path: 'products',
-        populate: {
-          path: 'model',
-          populate: { path: 'brand' }
-        }
+        populate: { path: 'model', populate: { path: 'brand' } }
       })
       .sort({ created_at: -1 });
 
-    // Compute profit for each billing and total
-    // Then use reduce to compute total profit
-    const totalAmount = billings.reduce(
-      (sum, billing) => sum + (Number(billing.payable_amount) || 0),
-      0
-    );
+    const totalAmount = billings.reduce((s, b) => s + Number(b.payable_amount || 0), 0);
+    const totalRemaining = billings.reduce((s, b) => s + Number(b.pending_amount || 0), 0);
+    const totalProfit = billings.reduce((s, b) => s + Number(b.actualProfit || 0), 0);
+    const totalProducts = billings.reduce((s, b) => s + (b.products?.length || 0), 0);
 
-    const totalRemaining = billings.reduce(
-      (sum, billing) => sum + (Number(billing.pending_amount) || 0),
-      0
-    );
+    res.json({ billings, totalAmount, totalRemaining, totalProfit, totalProducts });
 
-    const totalProfit = billings.reduce(
-      (sum, billing) => sum + (Number(billing.actualProfit) || 0),
-      0
-    );
-
-    const totalProducts = billings.reduce(
-      (sum, billing) => sum + (billing.products?.length || 0),
-      0
-    );
-
-    /* ---------------------------------------------------
-       7️⃣ RESPONSE
-    --------------------------------------------------- */
-    res.json({
-      billings,
-      totalAmount,
-      totalRemaining,
-      totalProfit,
-      totalProducts
-    });
-
-  } catch (error) {
-    console.error('Error in GET /api/billings:', error);
-    res.status(500).json({ error: 'Internal server error' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
   }
-});
+};
 
-
-// GET /api/billings/:id
-router.get('/:id', async (req, res) => {
+/* ======================================================
+   GET /api/billings/:id
+====================================================== */
+export const getBillingById = async (req, res) => {
   try {
     const billing = await Billing.findById(req.params.id)
       .populate('customer')
       .populate({
         path: 'products',
         populate: [
-          {
-            path: 'model',
-            populate: { path: 'brand' }
-          },
-          {
-            path: 'supplier'
-          }
+          { path: 'model', populate: { path: 'brand' } },
+          { path: 'supplier' }
         ]
-      })
-
-
-    // Compute profit for each billing and total
-    // Then use reduce to compute total profit
-    const totalSalesPrice = billing.products.reduce(
-      (sum, product) => sum + (parseInt(product.sales_price) ?? 0),
-      0
-    );
-    const totalRate = billing.products.reduce(
-      (sum, product) => sum + (parseInt(product.sold_at_price) ?? 0),
-      0
-    );
-
-
-    const totalPurchasePrice = billing.products.reduce(
-      (sum, product) => sum + (parseInt(product.purchase_price) ?? 0),
-      0
-    );
-    const totalGSTPurchasePrice = billing.products.reduce(
-      (sum, product) => sum + (parseInt(product.gst_purchase_price) ?? 0),
-      0
-    );
-
-    // const netTotal = totalRate + (billing.profit * 0.18)
+      });
 
     if (!billing) {
       return res.status(404).json({ error: 'Billing not found' });
     }
 
-    // Return both the list and total profit
+    const totalSalesPrice = billing.products.reduce(
+      (s, p) => s + Number(p.sales_price || 0), 0
+    );
+    const totalRate = billing.products.reduce(
+      (s, p) => s + Number(p.sold_at_price || 0), 0
+    );
+    const totalPurchasePrice = billing.products.reduce(
+      (s, p) => s + Number(p.purchase_price || 0), 0
+    );
+    const totalGSTPurchasePrice = billing.products.reduce(
+      (s, p) => s + Number(p.gst_purchase_price || p.purchase_price || 0), 0
+    );
+
     res.json({
       billing,
       totalSalesPrice,
       totalRate,
       totalPurchasePrice,
-      totalGSTPurchasePrice,
-      // netTotal
+      totalGSTPurchasePrice
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-// POST /api/billing
-router.post('/', async (req, res) => {
+/* ======================================================
+   POST /api/billing
+====================================================== */
+export const createBilling = async (req, res) => {
   try {
     const { customer_name, contact_number, products, payable_amount, paid_amount, status } = req.body;
 
@@ -259,7 +196,10 @@ router.post('/', async (req, res) => {
       }
       console.log("singleProduct", singleProduct);
 
-      foundProducts.push({ productId: product._id, final_rate: singleProduct.rate, purchase_price: product.purchase_price, gst_purchase_price: product.gst_purchase_price || product.purchase_price });
+      foundProducts.push({
+        productId: product._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: product.purchase_cost_including_expenses || product.purchase_price,
+        gst_purchase_price: product.gst_purchase_price || product.purchase_price, purchase_price: product.purchase_price
+      });
 
       updatedProducts.push(product);
     }
@@ -270,6 +210,7 @@ router.post('/', async (req, res) => {
 
 
     const totalGSTPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.gst_purchase_price), 0);
+    const totalPurchasePriceIncludingExpenses = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_cost_including_expenses), 0);
     const totalPurchasePrice = foundProducts.reduce((sum, product) => sum + parseFloat(product.purchase_price), 0);
     console.log("totalGSTPurchasePrice", totalGSTPurchasePrice);
 
@@ -305,11 +246,11 @@ router.post('/', async (req, res) => {
       pending_amount: pending_amount,
       paid_amount,
       status: billStatus,
-      profitToShow: profitToShow.toString(),
-      actualProfit: actualProfit.toString(),
+      profitToShow: profitToShow,
+      actualProfit: actualProfit,
       net_total,
-      c_gst: c_gst.toString(),
-      s_gst: s_gst.toString(),
+      c_gst: c_gst,
+      s_gst: s_gst,
       created_at: moment.utc().valueOf(),
       update_at: moment.utc().valueOf()
     });
@@ -361,12 +302,14 @@ router.post('/', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-// PUT /api/billing/:id
-router.put('/:id', async (req, res) => {
+/* ======================================================
+   PUT /api/billing/:id
+====================================================== */
+export const updateBilling = async (req, res) => {
   try {
-    const { customer_name, contact_number, products, payable_amount, paid_amount = [], advance_amount, status } = req.body;
+    const { customer_name, contact_number, products, payable_amount, paid_amount = [], advance_amount = 0, status } = req.body;
 
     if (!customer_name || !contact_number || !products || !Array.isArray(products)) {
       return res.status(400).json({ error: 'Customer name, contact number and products array are required' });
@@ -457,10 +400,8 @@ router.put('/:id', async (req, res) => {
       const finalRate = incomingRateMap[imei];
 
       foundProducts.push({
-        productId: p._id,
-        final_rate: finalRate,
-        purchase_price: p.purchase_price,
-        gst_purchase_price: p.gst_purchase_price || p.purchase_price
+        productId: p._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
+        gst_purchase_price: p.gst_purchase_price || p.purchase_price, purchase_price: p.purchase_price
       });
 
       updatedProducts.push(p);
@@ -473,8 +414,8 @@ router.put('/:id', async (req, res) => {
       foundProducts.push({
         productId: p._id,
         final_rate: finalRate,
-        purchase_price: p.purchase_price,
-        gst_purchase_price: p.gst_purchase_price || p.purchase_price
+        purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
+        gst_purchase_price: p.gst_purchase_price || p.purchase_cost_including_expenses || p.purchase_price
       });
 
       updatedProducts.push(p);
@@ -488,10 +429,10 @@ router.put('/:id', async (req, res) => {
 
     const totalCost = foundProducts.reduce((s, fp) => s + (parseFloat(fp.final_rate) || 0), 0);
     const totalGSTPurchasePrice = foundProducts.reduce((s, fp) => s + (parseFloat(fp.gst_purchase_price) || 0), 0);
-    const totalPurchasePrice = foundProducts.reduce((s, fp) => s + (parseFloat(fp.purchase_price) || 0), 0);
+    const totalPurchasePriceIncludingExpenses = foundProducts.reduce((s, fp) => s + (parseFloat(fp.purchase_cost_including_expenses) || 0), 0);
 
     const profitToShow = totalCost - totalGSTPurchasePrice;
-    const actualProfit = totalCost - totalPurchasePrice;
+    const actualProfit = totalCost - totalPurchasePriceIncludingExpenses;
 
     let c_gst = 0;
     let s_gst = 0;
@@ -513,11 +454,11 @@ router.put('/:id', async (req, res) => {
       paid_amount: numericPaidArray,
       advance_amount,
       status,
-      actualProfit: actualProfit.toString(),
-      profitToShow: profitToShow.toString(),
+      actualProfit: actualProfit,
+      profitToShow: profitToShow,
       net_total,
-      c_gst: c_gst.toString(),
-      s_gst: s_gst.toString(),
+      c_gst: c_gst,
+      s_gst: s_gst,
       updated_at: moment.utc().valueOf()
     };
 
@@ -574,10 +515,13 @@ router.put('/:id', async (req, res) => {
     console.error('Error updating billing:', err);
     return res.status(500).json({ error: err.message });
   }
-});
+};
 
-// PUT /api/billing/payment/:id
-router.put('/payment/:id', async (req, res) => {
+
+/* ======================================================
+   PUT /api/billing/payment/:id
+====================================================== */
+export const updateBillingPayment = async (req, res) => {
   try {
     const { paid_amount } = req.body;
 
@@ -728,11 +672,13 @@ router.put('/payment/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
 
-// DELETE /api/billings/:id
-router.delete('/:id', async (req, res) => {
+/* ======================================================
+   DELETE /api/billings/:id
+====================================================== */
+export const deleteBilling = async (req, res) => {
   try {
     const billing = await Billing.findById(req.params.id);
     if (!billing) {
@@ -785,7 +731,4 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
-
-
-module.exports = router;
+};
