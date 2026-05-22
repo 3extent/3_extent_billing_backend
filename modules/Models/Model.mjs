@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
 
 const modelSchema = new mongoose.Schema({
   name: String,
@@ -8,5 +8,6 @@ const modelSchema = new mongoose.Schema({
   updated_at: { type: Number, default: moment.utc().valueOf() }
 });
 
+const Model = mongoose.model('Model', modelSchema);
 
-module.exports = mongoose.model('Model', modelSchema);
+export default Model;

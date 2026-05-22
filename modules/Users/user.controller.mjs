@@ -1,0 +1,467 @@
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
+import User from './User.mjs';
+import Product from '../Products/Product.mjs';
+import Brand from '../Brands/Brand.mjs';
+import Model from '../Models/Model.mjs';
+import Role from '../UserRoles/UserRole.mjs';
+
+
+
+// POST /api/users/login
+export const loginUser = async (req, res) => {
+  try {
+    const { contact_number, password } = req.body;
+
+    const user = await User.findOne({ contact_number }).populate({
+      path: "role",
+      populate: [
+        {
+          path: "menu_items.name",
+          model: "MenuItem",
+          populate: {
+            path: "parent",        // ✅ this matches your schema
+            model: "MenuItem",
+            select: "name"
+          }
+        },
+        {
+          path: "menu_items.show_table_columns",
+          model: "TableColumn",
+          select: "name"
+        },
+        {
+          path: "menu_items.hidden_dropdown_table_columns",
+          model: "TableColumn",
+          select: "name"
+        }
+      ]
+    });
+    if (!user) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    // Generate JWT
+    const token = jwt.sign(
+      {
+        userId: user._id,
+        role: user.role?._id,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "12h" }
+    );
+
+    // Hide password before sending response
+    user.password = undefined;
+
+    res.status(200).json({
+      message: "Login successful",
+      token,
+      user,
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/users
+export const getUsers = async (req, res) => {
+  try {
+    const { role, name, contact_number, type } = req.query;
+    let filter = {};
+
+    if (name) {
+      filter.name = { $regex: name, $options: 'i' };
+    }
+
+    if (contact_number) {
+      filter.contact_number = { $regex: contact_number, $options: 'i' };
+    }
+
+    if (role) {
+      const existingRole = await Role.findOne({ name: role });
+      if (!existingRole) {
+        return res.status(400).json({ message: 'User role not found' });
+      }
+      filter.role = existingRole._id;
+    }
+
+    if (type) filter.type = type;
+
+    const users = await User.find(filter)
+      .populate('products')
+      .populate({ path: 'role', populate: { path: 'menu_items' } });
+
+    const part_cost_of_all_users = users.reduce((s, u) => s + u.total_part_cost, 0);
+    const payable_amount_of_all_users = users.reduce((s, u) => s + u.payable_amount, 0);
+    const pending_amount_of_all_users = users.reduce((s, u) => s + u.pending_amount, 0);
+
+    res.json({
+      users,
+      part_cost_of_all_users,
+      payable_amount_of_all_users,
+      pending_amount_of_all_users,
+      paid_amount_of_all_users:
+        payable_amount_of_all_users - pending_amount_of_all_users
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+
+// POST /api/users
+export const createUser = async (req, res) => {
+  try {
+    const {
+      name,
+      contact_number,
+      contact_number2,
+      role,
+      state,
+      address,
+      gst_number,
+      pan_number,
+      firm_name
+    } = req.body;
+
+    if (await User.findOne({ contact_number })) {
+      return res.status(400).json({ error: 'User already exists' });
+    }
+
+    const roleDoc = await Role.findOne({ name: role });
+    if (!roleDoc) {
+      return res.status(400).json({ message: 'User role not found' });
+    }
+
+    const user = new User({
+      name,
+      contact_number,
+      contact_number2,
+      role: roleDoc._id,
+      state,
+      address,
+      gst_number,
+      pan_number,
+      firm_name
+    });
+
+    await user.save();
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/users/:id
+export const getUserById = async (req, res) => {
+  try {
+    const {
+      imei_number,
+      grade,
+      brandName,
+      modelName,
+      status,
+      from,
+      to,
+      repairer_name,
+      is_repaired,
+      repair_from,
+      repair_to
+    } = req.query;
+
+    let productFilters = {};
+
+    if (imei_number) {
+      const p = await Product.findOne({ imei_number });
+      if (!p) return res.json({ error: `Product with IMEI ${imei_number} not found` });
+      productFilters._id = p._id;
+    }
+
+    if (grade) productFilters.grade = { $regex: grade, $options: 'i' };
+
+    productFilters.status = status
+      ? { $in: status.split(',').filter(s => s !== 'REMOVED'), $ne: 'REMOVED' }
+      : { $ne: 'REMOVED' };
+
+    if (is_repaired !== undefined) {
+      productFilters.is_repaired = is_repaired === 'true' || is_repaired === true;
+    }
+
+    if (from || to) {
+      productFilters.created_at = {
+        ...(from && { $gte: Number(from) }),
+        ...(to && { $lte: Number(to) })
+      };
+    }
+
+    if (repair_from || repair_to) {
+      productFilters.repair_started_at = {
+        ...(repair_from && { $gte: Number(repair_from) }),
+        ...(repair_to && { $lte: Number(repair_to) })
+      };
+    }
+
+    if (brandName) {
+      const brand = await Brand.findOne({ name: { $regex: brandName, $options: 'i' } });
+      if (brand) {
+        const models = await Model.find({ brand: brand._id });
+        productFilters.model = { $in: models.map(m => m._id) };
+      }
+    } else if (modelName) {
+      const model = await Model.findOne({ name: { $regex: modelName, $options: 'i' } });
+      if (!model) return res.json({ error: `Model ${modelName} not found` });
+      productFilters.model = model._id;
+    }
+
+    const user = await User.findById(req.params.id)
+      .populate({
+        path: 'products',
+        match: productFilters,
+        populate: { path: 'model', populate: { path: 'brand' } }
+      })
+      .populate({
+        path: 'repair_activities',
+        populate: [
+          { path: 'product', match: productFilters, populate: { path: 'model' } },
+          { path: 'repairer', ...(repairer_name && { match: { name: repairer_name } }) }
+        ]
+      });
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.repair_activities = user.repair_activities.filter(
+      ra => ra.product && ra.repairer
+    );
+
+    /* ---------------------------------------------------
+      CALCULATIONS
+   --------------------------------------------------- */
+    const purchase_total_of_all_products = user.products.reduce(
+      (sum, product) => sum + (Number(product.purchase_price) || 0),
+      0
+    );
+
+    const total_parts_cost_used = user.products.reduce(
+      (sum, product) => sum + (Number(product.part_cost) || 0),
+      0
+    );
+
+    const total_payable_amount = user.products.reduce(
+      (sum, product) => sum + (Number(product.repairer_cost) || 0),
+      0
+    );
+
+    console.log('user: ', user);
+    let total_payable_amount_of_parts = 0;
+    if (user.repair_activities.length !== 0) {
+      total_payable_amount_of_parts = user.repair_activities.reduce(
+        (sum, activity) => sum + (Number(activity.cost) || 0),
+        0
+      );
+    }
+    else {
+      total_payable_amount_of_parts = user.products.reduce(
+        (productAcc, product) => {
+          const productPartsTotal = (product.repair_parts || []).reduce(
+            (partsAcc, part) => partsAcc + (part.cost || 0),
+            0
+          );
+          return productAcc + productPartsTotal;
+        },
+        0
+      );
+    }
+
+    /* ---------------------------------------------------
+       RESPONSE
+    --------------------------------------------------- */
+    res.json({
+      user,
+      purchase_total_of_all_products,
+      total_parts_cost_used,
+      total_payable_amount,
+      total_payable_amount_of_parts
+    });
+
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/users/:id
+export const updateUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// PUT /api/users/payment/:id
+export const updateUserPayment = async (req, res) => {
+  try {
+    const { paid_amount, payable_amount, total_part_cost } = req.body;
+    const user = await User.findById(req.params.id).populate({ path: 'products', populate: { path: 'model' } });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    let payable = parseInt(user.payable_amount) || 0 + parseInt(payable_amount) || 0;
+
+    const paidMap = {};
+
+    // Existing payments from DB
+    user.paid_amount.forEach(p => {
+      paidMap[p.method] = Number(p.amount);
+    });
+
+    // Incoming payments
+    for (const payment of paid_amount) {
+      if (!payment.method || payment.amount == null) {
+        return res.status(400).json({
+          error: 'Each payment must have method and amount'
+        });
+      }
+
+      const amt = Number(payment.amount);
+
+      paidMap[payment.method] =
+        (paidMap[payment.method] || 0) + amt;
+    }
+
+    const updatedPaidAmount = Object.keys(paidMap).map(method => ({
+      method,
+      amount: paidMap[method].toString()
+    }));
+
+    const totalPaid = Object.values(paidMap)
+      .reduce((sum, amt) => sum + amt, 0);
+
+    let pending_amount = parseInt(payable) - parseInt(totalPaid);
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id,
+      {
+        payable_amount: payable,
+        paid_amount: updatedPaidAmount,
+        pending_amount,
+        total_part_cost
+      }, { new: true });
+
+
+    res.json(updatedUser);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+// POST /api/users/parts
+export const addPartUser = async (req, res) => {
+  try {
+    const { part_name, part_cost, shop_name, model_name } = req.body;
+
+    // Find shop by name
+    const shop = await User.findOne({ name: shop_name });
+    if (!shop) {
+      return res.status(404).json({ message: "Shop not found" });
+    }
+
+    // Find model
+    const model = await Model.findOne({ name: model_name });
+    if (!model) {
+      return res.status(404).json({ message: "Model not found" });
+    }
+
+    // Add part to shop
+    const newPart = {
+      part_name,
+      part_cost,
+      shop: shop._id,
+      model: model._id,
+      status: "AVAILABLE"
+    };
+
+    shop.parts.push(newPart);
+
+
+    await shop.save();
+
+    // Populate response
+    const populatedShop = await User.findById(shop._id)
+      .populate("parts.shop", "name")
+      .populate("parts.model", "name");
+
+    res.status(200).json({
+      success: true,
+      message: "Part added successfully",
+      data: populatedShop
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+
+// GET /api/users/parts
+
+export const getUserParts = async (req, res) => {
+  try {
+    const { shop, status } = req.query;
+
+    const users = await User.find()
+      .populate("parts.shop", "name contact_number")
+      .populate("parts.model", "name");
+
+    let allParts = [];
+
+    users.forEach(user => {
+      if (user.parts && user.parts.length > 0) {
+        const partsWithShopInfo = user.parts.map(part => ({
+          ...part._doc,
+          shop_name: user.name
+        }));
+
+        allParts.push(...partsWithShopInfo);
+      }
+    });
+
+
+    if (shop) {
+      allParts = allParts.filter(p =>
+        p.shop_name &&
+        p.shop_name.toLowerCase().includes(shop.toLowerCase())
+      );
+    }
+
+    if (status) {
+      allParts = allParts.filter(p =>
+        p.status && p.status === status
+      );
+    }
+
+    res.status(200).json({
+      total_parts: allParts.length,
+      parts: allParts
+    });
+
+  } catch (err) {
+    res.status(500).json({
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
