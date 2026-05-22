@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
 
 const productSchema = new mongoose.Schema({
   model: { type: mongoose.Schema.Types.ObjectId, ref: 'Model' },
@@ -19,7 +19,9 @@ const productSchema = new mongoose.Schema({
   //repair details
   issue: { type: String },
   repair_parts: [
-    { shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, part_name: String, cost: { type: Number, default: 0 } }
+    { shop: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }, part_name: String, cost: { type: Number, default: 0 },
+    status: { type: String, default: "SOLD" }
+   }
   ],
   repairer_cost: { type: Number, default: 0 },
   repair_remark: { type: String },
@@ -33,4 +35,6 @@ const productSchema = new mongoose.Schema({
   created_by: String
 });
 
-module.exports = mongoose.model('Product', productSchema);
+const Product = mongoose.model('Product', productSchema);
+
+export default Product;

@@ -1,5 +1,6 @@
-const mongoose = require('mongoose');
-const moment = require('moment');
+import mongoose from 'mongoose';
+import moment from 'moment';
+
 
 const billingSchema = new mongoose.Schema({
   invoice_number: { type: Number, unique: true },
@@ -53,4 +54,5 @@ billingSchema.pre('save', async function (next) {
   next();
 });
 
-module.exports = mongoose.model('Billing', billingSchema);
+const Billing = mongoose.model('Billing', billingSchema);
+export default Billing;

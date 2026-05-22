@@ -1,95 +1,16 @@
-const express = require('express');
-const router = express.Router();
-const Product = require('../models/Product');
-const Brand = require('../models/Brand');
-const Model = require('../models/Model');
-const User = require('../models/User');
-const Role = require('../models/UserRole');
-const moment = require('moment');
+import moment from 'moment';
+import Product from './Product.mjs';
+import User from '../Users/User.mjs';
+import Model from '../Models/Model.mjs';
+import Brand from '../Brands/Brand.mjs';
 
-// Helper function to validate and find model and supplier
-async function validateModelAndSupplier(model_name, supplier_name, brand) {
-  let model = await Model.findOne({ name: model_name, brand: brand._id });
-
-  if (!model) {
-    // Create model if it doesn't exist
-    model = new Model({
-      name: model_name,
-      brand: brand._id,
-      created_at: moment.utc().valueOf(),
-      updated_at: moment.utc().valueOf()
-    });
-    await model.save();
-  }
-
-  const supplier_role = await Role.findOne({ name: "SUPPLIER" });
-
-  const supplier = await User.findOne({ name: supplier_name, role: supplier_role._id });
-  if (!supplier) {
-    throw new Error('Supplier not found');
-  }
-
-  return { model, supplier };
-}
-
-// Helper function to validate IMEI and handle existing products
-async function validateImeiAndHandleExisting(imei_number, status) {
-  const existingWithSameImei = await Product.find({ imei_number }).select('status imei_number');
-  const hasAvailableExisting = existingWithSameImei.some(p => (p.status || '').toUpperCase() === 'AVAILABLE');
-
-  if (hasAvailableExisting) {
-    throw new Error('IMEI already exists with AVAILABLE status');
-  }
-
-  const finalStatusForNew = status && status.toUpperCase() === "RETURN" ? status.toUpperCase() : 'AVAILABLE';
-  return finalStatusForNew;
-}
-
-// Helper function to create a single product
-async function createSingleProduct(productData) {
-  const { brand_name, model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = productData;
-
-  //validate brand
-  let brand = await Brand.findOne({ name: brand_name });
-
-  if (!brand) {
-    // Create model if it doesn't exist
-    brand = new Brand({
-      name: brand_name,
-      created_at: moment.utc().valueOf(),
-      updated_at: moment.utc().valueOf()
-    });
-    await brand.save();
-  }
-
-  // Validate model and supplier and add model if not there
-  const { model, supplier } = await validateModelAndSupplier(model_name, supplier_name, brand);
-
-  // Validate IMEI and handle existing products
-  const finalStatus = await validateImeiAndHandleExisting(imei_number, status);
-
-  // Create new product
-  const product = new Product({
-    brand,
-    model,
-    imei_number,
-    sales_price,
-    purchase_price,
-    gst_purchase_price: parseInt(purchase_price) + 500,
-    grade,
-    engineer_name,
-    accessories,
-    supplier,
-    qc_remark,
-    status: finalStatus
-  });
+import {
+  createSingleProduct
+} from './product.helpers.mjs';
 
 
-  return product;
-}
-
-// GET /api/products
-router.get('/', async (req, res) => {
+/* GET /api/products */
+export const getProducts = async (req, res) => {
   try {
     console.log(req.query);
     const { imei_number,
@@ -221,8 +142,24 @@ router.get('/', async (req, res) => {
 
     console.log(filter);
 
-    const products = await Product.find(filter).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by').sort({ created_at: -1 });;
-    let part_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
+    const products = await Product.find(filter)
+      .populate({
+        path: "model",
+        select: "name",
+        populate: {
+          path: "brand",
+          select: "name"
+        }
+      })
+      .populate({
+        path: "supplier",
+        select: "name"
+      })
+      .populate({
+        path: "repair_by",
+        select: "name"
+      })
+      .sort({ created_at: -1 }); let part_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.part_cost) || 0), 0);
     let repairer_cost_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.repairer_cost) || 0), 0);
     let purchase_total_of_all_products = products.reduce((sum, product) => sum + (parseInt(product.purchase_price) || 0), 0);
 
@@ -235,33 +172,52 @@ router.get('/', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-// POST /api/products/ - Create single product
-router.post('/', async (req, res) => {
+
+/* GET /api/product/:id */
+export const getProductById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by');
+
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    res.json(product);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+/* POST /api/products */
+export const createProduct = async (req, res) => {
   try {
     const product = await createSingleProduct(req.body);
     await product.save();
-    console.log('product: ', product)
+
     const supplier = await User.findById(product.supplier._id);
-    console.log('supplier: ', supplier)
-    const paidAmounts = supplier.paid_amount.reduce(
-      (sum, payment) => sum + payment.amount,
-      0
-    )
-    supplier.payable_amount = (parseInt(supplier.payable_amount) || 0) + parseInt(product.purchase_price);
-    supplier.pending_amount = supplier.payable_amount - paidAmounts
-    supplier.products.push(product._id)
-    console.log('supplier: ', supplier)
+
+    const paidAmounts =
+      supplier.paid_amount.reduce((s, p) => s + p.amount, 0);
+
+    supplier.payable_amount =
+      (supplier.payable_amount || 0) + Number(product.purchase_price);
+
+    supplier.pending_amount =
+      supplier.payable_amount - paidAmounts;
+
+    supplier.products.push(product._id);
     await supplier.save();
+
     res.json(product);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
-});
+};
 
-// POST /api/products/bulk - Create multiple products
-router.post('/bulk', async (req, res) => {
+/* POST /api/products/bulk */
+export const createBulkProducts = async (req, res) => {
   try {
     const products = req.body;
 
@@ -294,7 +250,7 @@ router.post('/bulk', async (req, res) => {
     const result = await Product.insertMany(prepared, { ordered: false });
 
     console.log('result: ', result)
-    for (singleProduct of result) {
+    for (let singleProduct of result) {
       const supplier = await User.findById(singleProduct.supplier._id);
       console.log('supplier: ', supplier)
 
@@ -316,11 +272,9 @@ router.post('/bulk', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-
-// PUT /api/products/:id - update a single product
-router.put('/:id', async (req, res) => {
+export const updateProduct = async (req, res) => {
   try {
     const { model_name, imei_number, sales_price, purchase_price, grade, engineer_name, accessories, supplier_name, qc_remark, status } = req.body;
     const product = await Product.findById(req.params.id);
@@ -352,43 +306,29 @@ router.put('/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+}
 
-// GET /api/products/:id - get a single product
-router.get('/:id', async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id).populate({ path: 'model', populate: { path: 'brand' } }).populate('supplier').populate('repair_by');
-
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    res.json(product);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DELETE /api/products/:id - change status of product to REMOVED instead of deleting
-router.delete('/:id', async (req, res) => {
+/* DELETE /api/products/:id */
+export const removeProduct = async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    if (product.status === 'SOLD') {
+      return res.status(400).json({ error: 'Cannot remove SOLD product' });
     }
-    if ((product.status || '').toUpperCase() === 'SOLD') {
-      return res.status(400).json({ error: 'Cannot remove a product that has been SOLD' });
-    }
+
     product.status = 'REMOVED';
     product.updated_at = moment.utc().valueOf();
     await product.save();
+
     res.json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-});
+};
 
-// PUT /api/products/:id/repair - update repair details
-router.put('/:id/repair', async (req, res) => {
+export const updateProductForRepair = async (req, res) => {
   try {
     const {
       issue,
@@ -478,7 +418,8 @@ router.put('/:id/repair', async (req, res) => {
         return {
           shop: shopMap[part.shop_name.trim()],
           part_name: part.part_name,
-          cost
+          cost,
+          status: "SOLD"
         };
       });
     }
@@ -547,6 +488,8 @@ router.put('/:id/repair', async (req, res) => {
     repairer.updated_at = moment.utc().valueOf();
     await repairer.save();
 
+
+
     // ✅ Update shops with repair activities (SAFE)
     for (const singleEle of rebuiltRepairParts) {
       await User.findByIdAndUpdate(
@@ -569,13 +512,48 @@ router.put('/:id/repair', async (req, res) => {
       );
     }
 
+     const shopNames = [...new Set(
+      repair_parts.map(part => part.shop_name?.trim()).filter(Boolean)
+    )];
+
+    const shops = await User.find({
+      name: { $in: shopNames }
+    });
+
+    for (const repairPart of repair_parts) {
+      const shop = shops.find(
+        shop => shop.name?.trim() === repairPart.shop_name?.trim()
+      );
+
+      if (!shop) continue;
+
+      let changed = false;
+
+      shop.parts = (shop.parts || []).map(part => {
+        const match =
+          part.part_name?.trim().toLowerCase() ===
+          repairPart.part_name?.trim().toLowerCase();
+
+        if (match) {
+          changed = true;
+          return {
+            ...part.toObject(),
+            status: "SOLD"
+          };
+        }
+
+        return part;
+      });
+
+      if (changed) {
+        await shop.save();
+      }
+    }
+
     res.json(product);
 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
   }
-});
-
-
-module.exports = router;
+}
