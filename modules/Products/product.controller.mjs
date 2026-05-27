@@ -401,7 +401,7 @@ export const updateProductForRepair = async (req, res) => {
           shop: shopMap[part.shop_name.trim()],
           part_name: part.part_name,
           cost,
-          status: "SOLD"
+          status: "USED"
         };
       });
     }
@@ -520,7 +520,7 @@ export const updateProductForRepair = async (req, res) => {
           changed = true;
           return {
             ...part.toObject(),
-            status: "SOLD"
+            status: "USED"
           };
         }
 
