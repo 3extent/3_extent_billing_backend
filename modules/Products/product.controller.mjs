@@ -428,7 +428,13 @@ export const updateProductForRepair = async (req, res) => {
     product.issue = issue;
 
     if (status === 'IN_REPAIRING') {
-      product.status = status;
+      if (product.status === "SOLD") {
+        product.status = "SOLD_IN_REPAIRING";
+      } else {
+        product.status = "IN_REPAIRING";
+      }
+
+      // product.status = status;
       product.accessories = accessories;
       product.repair_by = repairer._id;
       product.repair_started_at = moment.utc().valueOf();
@@ -437,7 +443,12 @@ export const updateProductForRepair = async (req, res) => {
     if (status === 'REPAIRED') {
       product.imei_number = imei_number;
       product.grade = grade;
-      product.status = "AVAILABLE";
+      if (product.status === "SOLD_IN_REPAIRING") {
+        product.status = "SOLD";
+      } else if (product.status === "IN_REPAIRING") {
+        product.status = "AVAILABLE";
+      }
+      // product.status = "AVAILABLE";
       product.is_repaired = true;
       product.repairer_cost = Number(repairer_cost);
       product.repair_remark = repair_remark;
@@ -512,7 +523,7 @@ export const updateProductForRepair = async (req, res) => {
       );
     }
 
-     const shopNames = [...new Set(
+    const shopNames = [...new Set(
       repair_parts.map(part => part.shop_name?.trim()).filter(Boolean)
     )];
 
