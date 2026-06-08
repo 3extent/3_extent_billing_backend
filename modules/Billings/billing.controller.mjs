@@ -400,7 +400,7 @@ export const updateBilling = async (req, res) => {
       const finalRate = incomingRateMap[imei];
 
       foundProducts.push({
-        productId: p._id, final_rate: singleProduct.rate, purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
+        productId: p._id, final_rate: p.rate, purchase_cost_including_expenses: p.purchase_cost_including_expenses || p.purchase_price,
         gst_purchase_price: p.gst_purchase_price || p.purchase_price, purchase_price: p.purchase_price
       });
 
