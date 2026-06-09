@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema({
 
     status: {
     type: String,
-    enum: ["AVAILABLE", "SOLD"],
+    enum: ["AVAILABLE", "USED"],
     default: "AVAILABLE"
   }
   }],
